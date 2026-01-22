@@ -78,11 +78,11 @@ export function MetaPoliciesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-[1400px] mx-auto p-8">
+      <div className="max-w-[1400px] mx-auto p-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-normal text-gray-900 mb-2">Meta Policies</h1>
+          <h1 className="text-2xl font-normal text-gray-900 mb-1">Meta Policies Management</h1>
           <p className="text-sm text-gray-600">
-            Global governance policies that apply across multiple agents, agent types, or tenants
+            Configure policies that apply across multiple agents, agent types, or tenants
           </p>
         </div>
 

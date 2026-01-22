@@ -140,17 +140,6 @@ export interface Database {
           created_at: string
         }
       }
-      mcp_servers: {
-        Row: {
-          id: string
-          name: string
-          server_type: string
-          provider: string
-          description: string
-          endpoint: string
-          created_at: string
-        }
-      }
     }
   }
 }
