@@ -1,0 +1,65 @@
+name: Sync to Enterprise GitHub
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    # Only run on the source GitHub repository, not on the enterprise mirror
+    if: github.repository == 'dinavinter/remix-of-agent-identity-hub'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync to Enterprise Repo
+        env:
+          ENTERPRISE_TOKEN: ${{ secrets.ENTERPRISE_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$ENTERPRISE_TOKEN" ]; then
+            echo "Error: ENTERPRISE_GITHUB_TOKEN secret is not set."
+            echo "Please set the ENTERPRISE_GITHUB_TOKEN secret in the repository settings."
+            exit 1
+          fi
+
+          # Target Repository URL
+          TARGET_REPO="github.tools.sap/AIAM/agent-identity-ias-tenant-view.git"
+          TARGET_URL="https://oauth2:$ENTERPRISE_TOKEN@$TARGET_REPO"
+          
+          echo "Adding enterprise remote..."
+          git remote add enterprise "$TARGET_URL"
+          
+          echo "Syncing branches..."
+          # Push all references from origin to enterprise
+          git push enterprise "refs/remotes/origin/*:refs/heads/*" --force
+          
+          echo "Syncing tags..."
+          git push enterprise --tags --force
+          
+          # Update homepage in package.json for the current branch
+          if [[ "$GITHUB_REF" == refs/heads/* ]]; then
+            echo "Updating homepage in package.json..."
+            
+            # Construct Homepage URL (remove .git suffix)
+            HOMEPAGE_URL="https://${TARGET_REPO%.git}"
+            
+            # Update homepage using jq
+            jq --indent 2 --arg homepage "$HOMEPAGE_URL" '.homepage = $homepage' package.json > package.json.tmp && mv package.json.tmp package.json
+            
+            # Configure git
+            git config user.name "GitHub Action"
+            git config user.email "action@github.com"
+            
+            # Commit the change
+            git add package.json
+            git commit -m "chore: update homepage for enterprise deployment" || echo "No changes to commit"
+            
+            BRANCH_NAME=${GITHUB_REF#refs/heads/}
+            echo "Pushing modified branch $BRANCH_NAME..."
+            git push enterprise HEAD:refs/heads/$BRANCH_NAME --force
+          fi
