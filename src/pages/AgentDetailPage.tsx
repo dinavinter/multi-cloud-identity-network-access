@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight, Edit, Trash2, Bot } from 'lucide-react';
+import { ChevronRight, Edit, Trash2, Bot, Tag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { ProviderBadge } from '../components/ProviderBadge';
@@ -96,6 +96,23 @@ export function AgentDetailPage({ agentId, onBack }: AgentDetailPageProps) {
                   <StatusBadge status={agent.status} />
                   <ProviderBadge provider={agent.provider} />
                 </div>
+                {agent.labels && agent.labels.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {agent.labels.map((label, idx) => (
+                      <span
+                        key={idx}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium ${
+                          label.includes(':')
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        <Tag className="w-3 h-3" />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {currentIdentity && (
                   <a href="#" className="text-sm text-[#0854A0] hover:underline">
                     Link to parent application

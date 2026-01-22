@@ -4,9 +4,8 @@ import { AgentListPage } from './pages/AgentListPage';
 import { AgentDetailPage } from './pages/AgentDetailPage';
 import { MetaPoliciesPage } from './pages/MetaPoliciesPage';
 import { PermissionsGraphPage } from './pages/PermissionsGraphPage';
-import { CombinedIdentitiesPage } from './pages/CombinedIdentitiesPage';
 
-type Page = 'home' | 'agents' | 'agent-detail' | 'meta-policies' | 'permissions-graph' | 'combined-identities';
+type Page = 'home' | 'agents' | 'agent-detail' | 'meta-policies' | 'permissions-graph';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('agents');
@@ -25,10 +24,6 @@ function App() {
     setCurrentPage('agents');
     setSelectedAgentId(null);
   };
-
-  if (currentPage === 'combined-identities') {
-    return <CombinedIdentitiesPage />;
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
