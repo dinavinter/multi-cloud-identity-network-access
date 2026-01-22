@@ -40,13 +40,16 @@ jobs:
           fi
 
       - name: Build
-        run: npm run build
+        run: |
+          npm run build
+          touch dist/.nojekyll
         env:
           BASE_PATH: ${{ steps.config.outputs.base_path }}
 
       - name: Deploy to GitHub Pages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CNAME_DOMAIN: control.ai.authz.id
         run: |
           # Dynamically determine the git host domain from github.server_url
           SERVER_URL="${{ github.server_url }}"
