@@ -15,7 +15,7 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
           </button>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-[#0854A0]">AI Security Cloud</span>
-            <span className="text-sm text-gray-500">AI Agent Identity & Access Management</span>
+            <span className="text-sm text-gray-500">Agent Access Control</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -69,16 +69,6 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
           }`}
         >
           Permissions Graph
-        </button>
-        <button
-          onClick={() => onNavigate('combined-identities')}
-          className={`pb-3 text-sm font-medium ${
-            currentPage === 'combined-identities'
-              ? 'text-[#0854A0] border-b-2 border-[#0854A0]'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Combined Identities
         </button>
       </div>
     </div>

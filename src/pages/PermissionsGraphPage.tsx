@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bot, Database, Shield, ArrowRight, Network } from 'lucide-react';
+import { Bot, Database, Shield, ArrowRight, Network, Server } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database as DB } from '../lib/database.types';
 
@@ -7,29 +7,16 @@ type Agent = DB['public']['Tables']['agents']['Row'];
 type AgentIdentity = DB['public']['Tables']['agent_identities']['Row'];
 type System = DB['public']['Tables']['systems']['Row'];
 type Permission = DB['public']['Tables']['permissions']['Row'];
-type AgentConnection = DB['public']['Tables']['agent_connections']['Row'];
-
-interface GraphNode {
-  id: string;
-  type: 'agent' | 'system';
-  name: string;
-  provider?: string;
-  status?: string;
-}
-
-interface GraphEdge {
-  from: string;
-  to: string;
-  permissions: string[];
-}
+type MCPServer = DB['public']['Tables']['mcp_servers']['Row'];
 
 export function PermissionsGraphPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [identities, setIdentities] = useState<AgentIdentity[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [connections, setConnections] = useState<AgentConnection[]>([]);
+  const [mcpServers, setMcpServers] = useState<MCPServer[]>([]);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<'agent' | 'mcp' | 'system' | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,19 +25,19 @@ export function PermissionsGraphPage() {
 
   const loadGraphData = async () => {
     try {
-      const [agentsRes, identitiesRes, systemsRes, permsRes, connsRes] = await Promise.all([
+      const [agentsRes, identitiesRes, systemsRes, permsRes, mcpRes] = await Promise.all([
         supabase.from('agents').select('*').eq('status', 'Active'),
         supabase.from('agent_identities').select('*'),
         supabase.from('systems').select('*'),
         supabase.from('permissions').select('*'),
-        supabase.from('agent_connections').select('*')
+        supabase.from('mcp_servers').select('*')
       ]);
 
       setAgents(agentsRes.data || []);
       setIdentities(identitiesRes.data || []);
       setSystems(systemsRes.data || []);
       setPermissions(permsRes.data || []);
-      setConnections(connsRes.data || []);
+      setMcpServers(mcpRes.data || []);
     } catch (error) {
       console.error('Error loading graph data:', error);
     } finally {
@@ -62,7 +49,6 @@ export function PermissionsGraphPage() {
     const agentIdentityIds = identities
       .filter(i => i.agent_id === agentId)
       .map(i => i.id);
-
     return permissions.filter(p => agentIdentityIds.includes(p.agent_identity_id));
   };
 
@@ -70,16 +56,6 @@ export function PermissionsGraphPage() {
     const agentPerms = getAgentPermissions(agentId);
     const systemIds = new Set(agentPerms.map(p => p.system_id));
     return systems.filter(s => systemIds.has(s.id));
-  };
-
-  const getPermissionTypes = (agentId: string, systemId: string) => {
-    const agentIdentityIds = identities
-      .filter(i => i.agent_id === agentId)
-      .map(i => i.id);
-
-    return permissions
-      .filter(p => agentIdentityIds.includes(p.agent_identity_id) && p.system_id === systemId)
-      .map(p => p.permission_type);
   };
 
   const getProviderColor = (provider: string) => {
@@ -90,278 +66,354 @@ export function PermissionsGraphPage() {
     if (p.includes('aws')) return '#FF9900';
     if (p.includes('salesforce')) return '#00A1E0';
     if (p.includes('google')) return '#EA4335';
+    if (p.includes('multi-cloud')) return '#6366F1';
     return '#6B7280';
+  };
+
+  const getMCPForProvider = (provider: string) => {
+    return mcpServers.find(mcp =>
+      mcp.provider.toLowerCase().includes(provider.toLowerCase()) ||
+      provider.toLowerCase().includes(mcp.provider.toLowerCase())
+    );
   };
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
   }
 
+  const selectedAgent = agents.find(a => a.id === selectedNode && selectedType === 'agent');
+  const selectedMCP = mcpServers.find(m => m.id === selectedNode && selectedType === 'mcp');
+  const selectedSystem = systems.find(s => s.id === selectedNode && selectedType === 'system');
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-[1600px] mx-auto p-6">
+      <div className="max-w-[1800px] mx-auto p-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-normal text-gray-900 mb-1">Permissions Graph</h1>
+          <h1 className="text-2xl font-normal text-gray-900 mb-1">Agent Identity Network Topology</h1>
           <p className="text-sm text-gray-600">
-            Visualization of agent identities, their permissions across systems, and inter-agent connections
+            Comprehensive view of agent identities, MCP servers, and system access across the network
           </p>
         </div>
 
         <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-8">
+          <div className="col-span-9">
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
                   <Bot className="w-4 h-4 text-blue-700" />
                   <span className="text-sm font-medium text-blue-900">Agents ({agents.length})</span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg">
+                <ArrowRight className="w-5 h-5 text-gray-400" />
+                <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 rounded-lg border border-indigo-200">
+                  <Server className="w-4 h-4 text-indigo-700" />
+                  <span className="text-sm font-medium text-indigo-900">MCP Servers ({mcpServers.length})</span>
+                </div>
+                <ArrowRight className="w-5 h-5 text-gray-400" />
+                <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg border border-purple-200">
                   <Database className="w-4 h-4 text-purple-700" />
                   <span className="text-sm font-medium text-purple-900">Systems ({systems.length})</span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg">
-                  <Shield className="w-4 h-4 text-green-700" />
-                  <span className="text-sm font-medium text-green-900">Permissions ({permissions.length})</span>
-                </div>
               </div>
 
-              <div className="space-y-8">
-                {agents.map((agent) => {
+              <div className="space-y-10">
+                {agents.slice(0, 6).map((agent) => {
                   const agentSystems = getSystemsForAgent(agent.id);
-                  const isSelected = selectedNode === agent.id;
+                  const agentMCP = getMCPForProvider(agent.provider);
+                  const isSelected = selectedNode === agent.id && selectedType === 'agent';
+                  const agentIdentities = identities.filter(i => i.agent_id === agent.id);
 
                   return (
                     <div key={agent.id} className="relative">
-                      <div className="flex items-start gap-6">
-                        <div
-                          onClick={() => setSelectedNode(agent.id)}
-                          className={`flex-shrink-0 cursor-pointer transition-all ${
-                            isSelected ? 'ring-2 ring-[#0854A0] ring-offset-2' : ''
-                          }`}
-                        >
+                      <div className="flex items-center gap-8">
+                        {/* Agent Column */}
+                        <div className="flex-shrink-0 w-48">
                           <div
-                            className="w-32 rounded-lg p-4 border-2 hover:shadow-md transition-shadow"
-                            style={{
-                              borderColor: getProviderColor(agent.provider),
-                              backgroundColor: `${getProviderColor(agent.provider)}10`
+                            onClick={() => {
+                              setSelectedNode(agent.id);
+                              setSelectedType('agent');
                             }}
+                            className={`cursor-pointer transition-all ${
+                              isSelected ? 'ring-2 ring-[#0854A0] ring-offset-2' : ''
+                            }`}
                           >
-                            <div className="flex items-center gap-2 mb-2">
-                              <Bot
-                                className="w-5 h-5"
-                                style={{ color: getProviderColor(agent.provider) }}
-                              />
-                              <span className="text-xs font-medium text-gray-600">
-                                {agent.provider}
-                              </span>
+                            <div
+                              className="rounded-lg p-4 border-2 hover:shadow-lg transition-all"
+                              style={{
+                                borderColor: getProviderColor(agent.provider),
+                                backgroundColor: `${getProviderColor(agent.provider)}10`
+                              }}
+                            >
+                              <div className="flex items-center gap-2 mb-2">
+                                <Bot
+                                  className="w-5 h-5"
+                                  style={{ color: getProviderColor(agent.provider) }}
+                                />
+                                <span className="text-xs font-medium text-gray-600">
+                                  {agent.provider}
+                                </span>
+                              </div>
+                              <p className="text-sm font-medium text-gray-900 leading-tight mb-2">
+                                {agent.name}
+                              </p>
+                              <div className="flex items-center gap-1 text-xs text-gray-600">
+                                <Network className="w-3 h-3" />
+                                <span>{agentIdentities.length} identities</span>
+                              </div>
                             </div>
-                            <p className="text-sm font-medium text-gray-900 leading-tight">
-                              {agent.name}
-                            </p>
-                            <p className="text-xs text-gray-600 mt-1">{agent.type}</p>
                           </div>
                         </div>
 
-                        {agentSystems.length > 0 && (
-                          <>
-                            <div className="flex-1 flex items-center justify-center py-12">
-                              <div className="space-y-4 w-full">
-                                {agentSystems.map((system) => {
-                                  const permTypes = getPermissionTypes(agent.id, system.id);
-                                  return (
-                                    <div key={system.id} className="flex items-center gap-4">
-                                      <div className="flex-1 flex items-center gap-3">
-                                        <div className="flex-1 h-0.5 bg-gradient-to-r from-gray-300 to-transparent" />
-                                        <div className="flex flex-col gap-1">
-                                          {permTypes.map((type, idx) => (
-                                            <div
-                                              key={idx}
-                                              className="px-3 py-1 bg-green-50 border border-green-200 rounded text-xs text-green-800 whitespace-nowrap"
-                                            >
-                                              {type}
-                                            </div>
-                                          ))}
-                                        </div>
-                                        <ArrowRight className="w-4 h-4 text-gray-400" />
-                                        <div className="flex-1 h-0.5 bg-gradient-to-r from-transparent to-gray-300" />
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+                        {/* Connection to MCP */}
+                        <div className="flex items-center gap-3">
+                          <div className="h-0.5 w-16 bg-gradient-to-r from-blue-300 to-indigo-300" />
+                          <ArrowRight className="w-4 h-4 text-indigo-400" />
+                        </div>
+
+                        {/* MCP Server Column */}
+                        {agentMCP ? (
+                          <div className="flex-shrink-0 w-56">
+                            <div
+                              onClick={() => {
+                                setSelectedNode(agentMCP.id);
+                                setSelectedType('mcp');
+                              }}
+                              className={`cursor-pointer transition-all ${
+                                selectedNode === agentMCP.id && selectedType === 'mcp' ? 'ring-2 ring-indigo-500 ring-offset-2' : ''
+                              }`}
+                            >
+                              <div className="rounded-lg p-4 border-2 border-indigo-300 bg-indigo-50 hover:shadow-lg transition-all">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Server className="w-5 h-5 text-indigo-600" />
+                                  <span className="text-xs font-medium text-indigo-900">
+                                    MCP Server
+                                  </span>
+                                </div>
+                                <p className="text-sm font-medium text-gray-900 leading-tight mb-1">
+                                  {agentMCP.name}
+                                </p>
+                                <p className="text-xs text-gray-600">{agentMCP.server_type}</p>
                               </div>
                             </div>
+                          </div>
+                        ) : (
+                          <div className="flex-shrink-0 w-56">
+                            <div className="rounded-lg p-4 border-2 border-dashed border-gray-300 bg-gray-50">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Server className="w-5 h-5 text-gray-400" />
+                                <span className="text-xs font-medium text-gray-500">
+                                  Direct Connection
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500">No MCP intermediary</p>
+                            </div>
+                          </div>
+                        )}
 
-                            <div className="flex-shrink-0 space-y-4">
+                        {/* Connection to Systems */}
+                        {agentSystems.length > 0 && (
+                          <>
+                            <div className="flex items-center gap-3">
+                              <div className="h-0.5 w-16 bg-gradient-to-r from-indigo-300 to-purple-300" />
+                              <ArrowRight className="w-4 h-4 text-purple-400" />
+                            </div>
+
+                            {/* Systems Column */}
+                            <div className="flex-1 space-y-3">
                               {agentSystems.map((system) => (
                                 <div
                                   key={system.id}
-                                  onClick={() => setSelectedNode(system.id)}
-                                  className={`w-32 rounded-lg p-4 border-2 bg-purple-50 border-purple-300 cursor-pointer hover:shadow-md transition-all ${
-                                    selectedNode === system.id ? 'ring-2 ring-purple-500 ring-offset-2' : ''
+                                  onClick={() => {
+                                    setSelectedNode(system.id);
+                                    setSelectedType('system');
+                                  }}
+                                  className={`cursor-pointer transition-all ${
+                                    selectedNode === system.id && selectedType === 'system' ? 'ring-2 ring-purple-500 ring-offset-2' : ''
                                   }`}
                                 >
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <Database className="w-5 h-5 text-purple-600" />
-                                    <span className="text-xs font-medium text-purple-900">
-                                      {system.provider}
-                                    </span>
+                                  <div className="rounded-lg p-3 border-2 border-purple-300 bg-purple-50 hover:shadow-lg transition-all">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Database className="w-4 h-4 text-purple-600" />
+                                      <span className="text-xs font-medium text-purple-900">
+                                        {system.provider}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-900 leading-tight">
+                                      {system.name}
+                                    </p>
+                                    <p className="text-xs text-gray-600 mt-0.5">{system.system_type}</p>
                                   </div>
-                                  <p className="text-sm font-medium text-gray-900 leading-tight">
-                                    {system.name}
-                                  </p>
-                                  <p className="text-xs text-gray-600 mt-1">{system.system_type}</p>
                                 </div>
                               ))}
                             </div>
                           </>
                         )}
                       </div>
+
+                      {/* Agent-to-Agent connections indicator */}
+                      {agent.name.includes('Workflow') && (
+                        <div className="absolute -bottom-4 left-48 flex items-center gap-2 text-xs text-gray-500">
+                          <div className="h-8 w-0.5 bg-green-300" />
+                          <span className="bg-green-50 px-2 py-1 rounded border border-green-200 text-green-700">
+                            Delegates to BTP Agent
+                          </span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
+
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <h3 className="text-sm font-medium text-gray-900 mb-4">Network Legend</h3>
+                <div className="flex items-center gap-6 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-1 bg-gradient-to-r from-blue-300 to-indigo-300 rounded" />
+                    <span className="text-gray-600">Agent → MCP</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-1 bg-gradient-to-r from-indigo-300 to-purple-300 rounded" />
+                    <span className="text-gray-600">MCP → System</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-1 bg-green-300 rounded" />
+                    <span className="text-gray-600">Agent → Agent</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="col-span-4">
+          <div className="col-span-3">
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 sticky top-6">
               <div className="flex items-center gap-2 mb-4">
-                <Network className="w-5 h-5 text-gray-600" />
+                <Shield className="w-5 h-5 text-gray-600" />
                 <h2 className="text-lg font-medium text-gray-900">Details</h2>
               </div>
 
-              {selectedNode ? (
+              {selectedAgent && (
                 <div>
-                  {(() => {
-                    const agent = agents.find(a => a.id === selectedNode);
-                    const system = systems.find(s => s.id === selectedNode);
+                  <div className="flex items-center gap-3 mb-4">
+                    <div
+                      className="w-12 h-12 rounded flex items-center justify-center"
+                      style={{
+                        backgroundColor: `${getProviderColor(selectedAgent.provider)}20`,
+                        color: getProviderColor(selectedAgent.provider)
+                      }}
+                    >
+                      <Bot className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">{selectedAgent.name}</h3>
+                      <p className="text-sm text-gray-600">{selectedAgent.type}</p>
+                    </div>
+                  </div>
 
-                    if (agent) {
-                      const agentPerms = getAgentPermissions(agent.id);
-                      const agentIdentitiesForAgent = identities.filter(i => i.agent_id === agent.id);
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Provider</h4>
+                      <p className="text-sm text-gray-900">{selectedAgent.provider}</p>
+                    </div>
 
-                      return (
-                        <div>
-                          <div className="flex items-center gap-3 mb-4">
-                            <div
-                              className="w-12 h-12 rounded flex items-center justify-center"
-                              style={{
-                                backgroundColor: `${getProviderColor(agent.provider)}20`,
-                                color: getProviderColor(agent.provider)
-                              }}
-                            >
-                              <Bot className="w-6 h-6" />
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Identities</h4>
+                      <div className="space-y-2">
+                        {identities
+                          .filter(i => i.agent_id === selectedAgent.id)
+                          .slice(0, 5)
+                          .map(identity => (
+                            <div key={identity.id} className="text-sm bg-gray-50 p-2 rounded border border-gray-200">
+                              <p className="font-medium text-gray-900 text-xs">{identity.tenant}</p>
+                              <p className="text-xs text-gray-600 font-mono">{identity.identity_id}</p>
                             </div>
-                            <div>
-                              <h3 className="font-medium text-gray-900">{agent.name}</h3>
-                              <p className="text-sm text-gray-600">{agent.type}</p>
-                            </div>
-                          </div>
+                          ))}
+                      </div>
+                    </div>
 
-                          <div className="space-y-4">
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">Provider</h4>
-                              <p className="text-sm text-gray-900">{agent.provider}</p>
-                            </div>
-
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">Status</h4>
-                              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                                agent.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                              }`}>
-                                {agent.status}
-                              </span>
-                            </div>
-
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                                Identities ({agentIdentitiesForAgent.length})
-                              </h4>
-                              <div className="space-y-2">
-                                {agentIdentitiesForAgent.map(identity => (
-                                  <div key={identity.id} className="text-sm bg-gray-50 p-2 rounded">
-                                    <p className="font-medium text-gray-900">{identity.tenant}</p>
-                                    <p className="text-xs text-gray-600">{identity.identity_id}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                                Permissions ({agentPerms.length})
-                              </h4>
-                              <div className="space-y-1">
-                                {agentPerms.map(perm => (
-                                  <div key={perm.id} className="text-xs bg-green-50 text-green-800 px-2 py-1 rounded">
-                                    {perm.permission_type}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (system) {
-                      const systemPerms = permissions.filter(p => p.system_id === system.id);
-                      const agentsWithAccess = agents.filter(a =>
-                        getSystemsForAgent(a.id).some(s => s.id === system.id)
-                      );
-
-                      return (
-                        <div>
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="w-12 h-12 bg-purple-100 rounded flex items-center justify-center">
-                              <Database className="w-6 h-6 text-purple-600" />
-                            </div>
-                            <div>
-                              <h3 className="font-medium text-gray-900">{system.name}</h3>
-                              <p className="text-sm text-gray-600">{system.system_type}</p>
-                            </div>
-                          </div>
-
-                          <div className="space-y-4">
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">Provider</h4>
-                              <p className="text-sm text-gray-900">{system.provider}</p>
-                            </div>
-
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">Description</h4>
-                              <p className="text-sm text-gray-600">{system.description}</p>
-                            </div>
-
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                                Agents with Access ({agentsWithAccess.length})
-                              </h4>
-                              <div className="space-y-2">
-                                {agentsWithAccess.map(a => (
-                                  <div key={a.id} className="text-sm bg-gray-50 p-2 rounded">
-                                    <p className="font-medium text-gray-900">{a.name}</p>
-                                    <p className="text-xs text-gray-600">{a.provider}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                                Total Permissions ({systemPerms.length})
-                              </h4>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-                  })()}
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Total Permissions</h4>
+                      <p className="text-2xl font-semibold text-[#0854A0]">
+                        {getAgentPermissions(selectedAgent.id).length}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              ) : (
+              )}
+
+              {selectedMCP && (
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-indigo-100 rounded flex items-center justify-center">
+                      <Server className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">{selectedMCP.name}</h3>
+                      <p className="text-sm text-gray-600">{selectedMCP.server_type}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Provider</h4>
+                      <p className="text-sm text-gray-900">{selectedMCP.provider}</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Description</h4>
+                      <p className="text-sm text-gray-600">{selectedMCP.description}</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Endpoint</h4>
+                      <p className="text-xs text-gray-600 font-mono break-all">{selectedMCP.endpoint}</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Connected Agents</h4>
+                      <p className="text-2xl font-semibold text-indigo-600">
+                        {agents.filter(a => getMCPForProvider(a.provider)?.id === selectedMCP.id).length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedSystem && (
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-purple-100 rounded flex items-center justify-center">
+                      <Database className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">{selectedSystem.name}</h3>
+                      <p className="text-sm text-gray-600">{selectedSystem.system_type}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Provider</h4>
+                      <p className="text-sm text-gray-900">{selectedSystem.provider}</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Description</h4>
+                      <p className="text-sm text-gray-600">{selectedSystem.description}</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Agents with Access</h4>
+                      <p className="text-2xl font-semibold text-purple-600">
+                        {agents.filter(a => getSystemsForAgent(a.id).some(s => s.id === selectedSystem.id)).length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!selectedAgent && !selectedMCP && !selectedSystem && (
                 <div className="text-center py-12 text-gray-500">
                   <Network className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-sm">Select an agent or system to view details</p>
+                  <p className="text-sm">Select a node to view details</p>
                 </div>
               )}
             </div>
