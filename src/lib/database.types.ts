@@ -154,6 +154,17 @@ export interface Database {
           created_at: string
         }
       }
+      node_connections: {
+        Row: {
+          id: string
+          source_type: string
+          source_id: string
+          target_type: string
+          target_id: string
+          connection_type: string
+          created_at: string
+        }
+      }
     }
   }
 }

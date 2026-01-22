@@ -1,19 +1,27 @@
 import { useEffect, useState } from 'react';
-import { Bot, Database, Network, Shield } from 'lucide-react';
+import { Bot, Server, Database } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database as DB } from '../lib/database.types';
 
 type Agent = DB['public']['Tables']['agents']['Row'];
-type AgentIdentity = DB['public']['Tables']['agent_identities']['Row'];
+type MCPServer = DB['public']['Tables']['mcp_servers']['Row'];
 type System = DB['public']['Tables']['systems']['Row'];
-type Permission = DB['public']['Tables']['permissions']['Row'];
+type NodeConnection = DB['public']['Tables']['node_connections']['Row'];
+
+type NetworkNode = {
+  id: string;
+  name: string;
+  type: 'agent' | 'mcp' | 'system';
+  provider: string;
+  subType?: string;
+  identityCount?: number;
+};
 
 export function PermissionsGraphPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [identities, setIdentities] = useState<AgentIdentity[]>([]);
+  const [mcpServers, setMCPServers] = useState<MCPServer[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [selectedAgentType, setSelectedAgentType] = useState<string>('');
+  const [connections, setConnections] = useState<NodeConnection[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,21 +30,17 @@ export function PermissionsGraphPage() {
 
   const loadGraphData = async () => {
     try {
-      const [agentsRes, identitiesRes, systemsRes, permsRes] = await Promise.all([
+      const [agentsRes, mcpRes, systemsRes, connectionsRes] = await Promise.all([
         supabase.from('agents').select('*').eq('status', 'Active'),
-        supabase.from('agent_identities').select('*'),
+        supabase.from('mcp_servers').select('*'),
         supabase.from('systems').select('*'),
-        supabase.from('permissions').select('*')
+        supabase.from('node_connections').select('*')
       ]);
 
       setAgents(agentsRes.data || []);
-      setIdentities(identitiesRes.data || []);
+      setMCPServers(mcpRes.data || []);
       setSystems(systemsRes.data || []);
-      setPermissions(permsRes.data || []);
-
-      if (agentsRes.data && agentsRes.data.length > 0) {
-        setSelectedAgentType(agentsRes.data[0].type);
-      }
+      setConnections(connectionsRes.data || []);
     } catch (error) {
       console.error('Error loading graph data:', error);
     } finally {
@@ -48,234 +52,245 @@ export function PermissionsGraphPage() {
     const p = provider.toLowerCase();
     if (p.includes('sap')) return '#0854A0';
     if (p.includes('microsoft')) return '#00A4EF';
-    if (p.includes('servicenow')) return '#62D84E';
     if (p.includes('aws')) return '#FF9900';
     if (p.includes('salesforce')) return '#00A1E0';
-    if (p.includes('google')) return '#EA4335';
     if (p.includes('multi-cloud')) return '#6366F1';
     return '#6B7280';
   };
 
-  const getAgentTypeColor = (type: string) => {
-    const t = type.toLowerCase();
-    if (t.includes('budget') || t.includes('compliance')) return '#059669';
-    if (t.includes('order')) return '#0284c7';
-    if (t.includes('invoice')) return '#7c3aed';
-    if (t.includes('requisition')) return '#dc2626';
-    if (t.includes('contract')) return '#ea580c';
-    return '#6B7280';
+  const getNodeIcon = (type: 'agent' | 'mcp' | 'system') => {
+    switch (type) {
+      case 'agent':
+        return Bot;
+      case 'mcp':
+        return Server;
+      case 'system':
+        return Database;
+    }
   };
 
-  const getIdentityPermissions = (identityId: string) => {
-    return permissions.filter(p => p.agent_identity_id === identityId);
+  const getLane1Nodes = (): NetworkNode[] => {
+    return agents
+      .filter(agent => connections.some(c => c.source_type === 'agent' && c.source_id === agent.id))
+      .map(agent => ({
+        id: agent.id,
+        name: agent.name,
+        type: 'agent' as const,
+        provider: agent.provider,
+        subType: agent.type
+      }));
   };
 
-  const getSystemsForIdentity = (identityId: string) => {
-    const identityPerms = getIdentityPermissions(identityId);
-    const systemIds = new Set(identityPerms.map(p => p.system_id));
-    return systems.filter(s => systemIds.has(s.id));
+  const getLane2NodesForAgent = (agentId: string): NetworkNode[] => {
+    const agentConnections = connections.filter(
+      c => c.source_type === 'agent' && c.source_id === agentId
+    );
+
+    return agentConnections.map(conn => {
+      if (conn.target_type === 'mcp') {
+        const mcp = mcpServers.find(m => m.id === conn.target_id);
+        if (mcp) {
+          return {
+            id: mcp.id,
+            name: mcp.name,
+            type: 'mcp' as const,
+            provider: mcp.provider,
+            subType: mcp.server_type
+          };
+        }
+      } else if (conn.target_type === 'agent') {
+        const targetAgent = agents.find(a => a.id === conn.target_id);
+        if (targetAgent) {
+          return {
+            id: targetAgent.id,
+            name: targetAgent.name,
+            type: 'agent' as const,
+            provider: targetAgent.provider,
+            subType: targetAgent.type
+          };
+        }
+      }
+      return null;
+    }).filter(Boolean) as NetworkNode[];
+  };
+
+  const getLane3NodesForLane2Node = (nodeId: string, nodeType: string): NetworkNode[] => {
+    if (nodeType !== 'mcp') return [];
+
+    const mcpConnections = connections.filter(
+      c => c.source_type === 'mcp' && c.source_id === nodeId && c.target_type === 'system'
+    );
+
+    return mcpConnections.map(conn => {
+      const system = systems.find(s => s.id === conn.target_id);
+      if (system) {
+        return {
+          id: system.id,
+          name: system.name,
+          type: 'system' as const,
+          provider: system.provider,
+          subType: system.system_type
+        };
+      }
+      return null;
+    }).filter(Boolean) as NetworkNode[];
+  };
+
+  const getAllLane2Nodes = (): NetworkNode[] => {
+    const lane2Nodes = new Map<string, NetworkNode>();
+
+    getLane1Nodes().forEach(agent => {
+      getLane2NodesForAgent(agent.id).forEach(node => {
+        lane2Nodes.set(node.id, node);
+      });
+    });
+
+    return Array.from(lane2Nodes.values());
+  };
+
+  const getAllLane3Nodes = (): NetworkNode[] => {
+    const lane3Nodes = new Map<string, NetworkNode>();
+
+    getAllLane2Nodes().forEach(node => {
+      getLane3NodesForLane2Node(node.id, node.type).forEach(systemNode => {
+        lane3Nodes.set(systemNode.id, systemNode);
+      });
+    });
+
+    return Array.from(lane3Nodes.values());
   };
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
   }
 
-  const uniqueAgentTypes = [...new Set(agents.map(a => a.type))];
-  const filteredAgents = agents.filter(a => a.type === selectedAgentType);
+  const lane1Nodes = getLane1Nodes();
+  const lane2Nodes = getAllLane2Nodes();
+  const lane3Nodes = getAllLane3Nodes();
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-normal text-gray-900 mb-2">Network Topology by Agent Type</h1>
+          <h1 className="text-2xl font-normal text-gray-900 mb-2">Network Topology</h1>
           <p className="text-sm text-gray-600">
-            View how each agent type operates across different tenants and systems
+            Comprehensive view of agent identities, MCP servers, and system access across the network
           </p>
         </div>
 
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {uniqueAgentTypes.map(agentType => {
-            const typeAgents = agents.filter(a => a.type === agentType);
-            const typeIdentities = identities.filter(i =>
-              typeAgents.some(a => a.id === i.agent_id)
-            );
-            return (
-              <button
-                key={agentType}
-                onClick={() => setSelectedAgentType(agentType)}
-                className={`px-4 py-2 rounded-lg border-2 transition-all ${
-                  selectedAgentType === agentType
-                    ? 'border-current shadow-md'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-                style={{
-                  backgroundColor: selectedAgentType === agentType
-                    ? `${getAgentTypeColor(agentType)}20`
-                    : 'white',
-                  color: getAgentTypeColor(agentType)
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4" />
-                  <span className="font-medium">{agentType}</span>
-                  <span className="text-xs opacity-70">({typeIdentities.length} instances)</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-medium text-gray-900">{selectedAgentType}</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                {filteredAgents.length} agent{filteredAgents.length !== 1 ? 's' : ''} across{' '}
-                {new Set(filteredAgents.map(a => a.provider)).size} provider{new Set(filteredAgents.map(a => a.provider)).size !== 1 ? 's' : ''}
-              </p>
+          <div className="flex items-center gap-4 mb-8">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-blue-200 bg-blue-50">
+              <Bot className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-gray-900">Agents ({lane1Nodes.length})</span>
             </div>
-            <div className="flex gap-2">
-              {filteredAgents.map(agent => (
-                <div
-                  key={agent.id}
-                  className="px-3 py-1.5 rounded border text-xs font-medium"
-                  style={{
-                    borderColor: getProviderColor(agent.provider),
-                    backgroundColor: `${getProviderColor(agent.provider)}15`,
-                    color: getProviderColor(agent.provider)
-                  }}
-                >
-                  {agent.provider}
-                </div>
-              ))}
+            <div className="text-gray-400">→</div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-purple-200 bg-purple-50">
+              <Server className="w-4 h-4 text-purple-600" />
+              <span className="text-sm font-medium text-gray-900">MCP Servers ({lane2Nodes.filter(n => n.type === 'mcp').length})</span>
+            </div>
+            <div className="text-gray-400">→</div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-green-200 bg-green-50">
+              <Database className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-medium text-gray-900">Systems ({lane3Nodes.length})</span>
             </div>
           </div>
 
-          <div className="relative" style={{ minHeight: '600px' }}>
-            <div className="grid grid-cols-3 gap-8">
+          <div className="relative" style={{ minHeight: '500px' }}>
+            <div className="grid grid-cols-3 gap-12">
               <div className="space-y-3">
-                <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-4">
-                  Agent Instances
-                </h3>
-                {filteredAgents.map((agent) => {
-                  const agentIdentities = identities.filter(i => i.agent_id === agent.id);
+                {lane1Nodes.map((node, idx) => {
+                  const Icon = getNodeIcon(node.type);
                   return (
                     <div
-                      key={agent.id}
-                      id={`agent-${agent.id}`}
-                      className="rounded-lg p-3 border-2 transition-all hover:shadow-md"
-                      style={{
-                        borderColor: getProviderColor(agent.provider),
-                        backgroundColor: `${getProviderColor(agent.provider)}15`
-                      }}
+                      key={node.id}
+                      id={`lane1-${idx}`}
+                      className="rounded-lg p-3 border-2 border-blue-200 bg-blue-50 hover:shadow-md transition-all"
                     >
                       <div className="flex items-center gap-2 mb-1">
-                        <Bot
+                        <Icon
                           className="w-4 h-4"
-                          style={{ color: getProviderColor(agent.provider) }}
+                          style={{ color: getProviderColor(node.provider) }}
                         />
-                        <span className="text-sm font-medium text-gray-900">{agent.name}</span>
+                        <span className="text-sm font-medium text-gray-900">{node.name}</span>
                       </div>
-                      <div className="text-xs text-gray-600 mb-1">
-                        {agent.provider}
-                      </div>
-                      <div className="text-xs" style={{ color: getProviderColor(agent.provider) }}>
-                        {agentIdentities.length} identit{agentIdentities.length !== 1 ? 'ies' : 'y'}
+                      <div className="text-xs text-gray-600">{node.subType}</div>
+                      <div
+                        className="text-xs mt-1 px-1.5 py-0.5 rounded inline-block"
+                        style={{
+                          backgroundColor: `${getProviderColor(node.provider)}20`,
+                          color: getProviderColor(node.provider)
+                        }}
+                      >
+                        {node.provider}
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="space-y-2">
-                <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-4">
-                  Identity Instances
-                </h3>
-                {filteredAgents.flatMap(agent =>
-                  identities
-                    .filter(i => i.agent_id === agent.id)
-                    .map(identity => {
-                      const identityPerms = getIdentityPermissions(identity.id);
-                      const agent = agents.find(a => a.id === identity.agent_id);
-                      return (
-                        <div
-                          key={identity.id}
-                          id={`identity-${identity.id}`}
-                          className="rounded-lg p-2 border-2 border-blue-200 bg-blue-50 hover:shadow-md transition-all"
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <Network className="w-3.5 h-3.5 text-blue-600" />
-                            <span className="text-xs font-medium text-gray-900 truncate">
-                              {identity.identity_name}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-600 truncate">
-                            {identity.tenant}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            {agent && (
-                              <span
-                                className="text-xs px-1.5 py-0.5 rounded"
-                                style={{
-                                  backgroundColor: `${getProviderColor(agent.provider)}20`,
-                                  color: getProviderColor(agent.provider)
-                                }}
-                              >
-                                {agent.provider}
-                              </span>
-                            )}
-                            {identityPerms.length > 0 && (
-                              <span className="text-xs text-green-600">
-                                {identityPerms.length} perms
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                )}
+              <div className="space-y-3">
+                {lane2Nodes.map((node, idx) => {
+                  const Icon = getNodeIcon(node.type);
+                  const bgColor = node.type === 'mcp' ? 'bg-purple-50' : 'bg-blue-50';
+                  const borderColor = node.type === 'mcp' ? 'border-purple-200' : 'border-blue-200';
+                  return (
+                    <div
+                      key={node.id}
+                      id={`lane2-${idx}`}
+                      className={`rounded-lg p-3 border-2 ${borderColor} ${bgColor} hover:shadow-md transition-all`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon
+                          className="w-4 h-4"
+                          style={{ color: getProviderColor(node.provider) }}
+                        />
+                        <span className="text-sm font-medium text-gray-900">{node.name}</span>
+                      </div>
+                      <div className="text-xs text-gray-600">{node.subType}</div>
+                      <div
+                        className="text-xs mt-1 px-1.5 py-0.5 rounded inline-block"
+                        style={{
+                          backgroundColor: `${getProviderColor(node.provider)}20`,
+                          color: getProviderColor(node.provider)
+                        }}
+                      >
+                        {node.provider}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              <div className="space-y-2">
-                <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-4">
-                  Connected Systems
-                </h3>
-                {Array.from(
-                  new Set(
-                    filteredAgents.flatMap(agent =>
-                      identities
-                        .filter(i => i.agent_id === agent.id)
-                        .flatMap(identity => getSystemsForIdentity(identity.id).map(s => s.id))
-                    )
-                  )
-                )
-                  .map(systemId => systems.find(s => s.id === systemId))
-                  .filter(Boolean)
-                  .map(system => {
-                    const systemPerms = permissions.filter(p => p.system_id === system!.id);
-                    return (
-                      <div
-                        key={system!.id}
-                        id={`system-${system!.id}`}
-                        className="rounded-lg p-2 border-2 border-green-200 bg-green-50 hover:shadow-md transition-all"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Database className="w-3.5 h-3.5 text-green-600" />
-                          <span className="text-xs font-medium text-gray-900 truncate">
-                            {system!.name}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-600 truncate">
-                          {system!.provider}
-                        </div>
-                        {systemPerms.length > 0 && (
-                          <div className="text-xs text-green-600 mt-1">
-                            {systemPerms.length} APIs
-                          </div>
-                        )}
+              <div className="space-y-3">
+                {lane3Nodes.map((node, idx) => {
+                  const Icon = getNodeIcon(node.type);
+                  return (
+                    <div
+                      key={node.id}
+                      id={`lane3-${idx}`}
+                      className="rounded-lg p-3 border-2 border-green-200 bg-green-50 hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon
+                          className="w-4 h-4"
+                          style={{ color: getProviderColor(node.provider) }}
+                        />
+                        <span className="text-sm font-medium text-gray-900">{node.name}</span>
                       </div>
-                    );
-                  })}
+                      <div className="text-xs text-gray-600">{node.subType}</div>
+                      <div
+                        className="text-xs mt-1 px-1.5 py-0.5 rounded inline-block"
+                        style={{
+                          backgroundColor: `${getProviderColor(node.provider)}20`,
+                          color: getProviderColor(node.provider)
+                        }}
+                      >
+                        {node.provider}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -296,49 +311,38 @@ export function PermissionsGraphPage() {
                 </marker>
               </defs>
 
-              {filteredAgents.map((agent, agentIdx) => {
-                const agentIdentities = identities.filter(i => i.agent_id === agent.id);
-                const allIdentities = filteredAgents.flatMap(a =>
-                  identities.filter(i => i.agent_id === a.id)
-                );
+              {lane1Nodes.map((lane1Node, lane1Idx) => {
+                const lane2Targets = getLane2NodesForAgent(lane1Node.id);
 
-                return agentIdentities.map((identity) => {
-                  const identityIdx = allIdentities.findIndex(i => i.id === identity.id);
-                  const identitySystems = getSystemsForIdentity(identity.id);
+                return lane2Targets.map((lane2Target) => {
+                  const lane2Idx = lane2Nodes.findIndex(n => n.id === lane2Target.id);
+                  if (lane2Idx === -1) return null;
 
-                  const allSystems = Array.from(
-                    new Set(
-                      filteredAgents.flatMap(a =>
-                        identities
-                          .filter(i => i.agent_id === a.id)
-                          .flatMap(id => getSystemsForIdentity(id.id).map(s => s.id))
-                      )
-                    )
-                  )
-                    .map(sId => systems.find(s => s.id === sId))
-                    .filter(Boolean);
+                  const lane3Targets = getLane3NodesForLane2Node(lane2Target.id, lane2Target.type);
 
                   return (
-                    <g key={`${agent.id}-${identity.id}`}>
+                    <g key={`${lane1Node.id}-${lane2Target.id}`}>
                       <line
-                        x1="33%"
-                        y1={`${agentIdx * 95 + 85}px`}
-                        x2="50%"
-                        y2={`${identityIdx * 85 + 75}px`}
+                        x1="30%"
+                        y1={`${lane1Idx * 95 + 55}px`}
+                        x2="40%"
+                        y2={`${lane2Idx * 95 + 55}px`}
                         stroke="#93c5fd"
                         strokeWidth="2"
                         markerEnd="url(#arrowhead)"
                       />
 
-                      {identitySystems.map((system) => {
-                        const systemIdx = allSystems.findIndex(s => s!.id === system.id);
+                      {lane3Targets.map((lane3Target) => {
+                        const lane3Idx = lane3Nodes.findIndex(n => n.id === lane3Target.id);
+                        if (lane3Idx === -1) return null;
+
                         return (
                           <line
-                            key={`${identity.id}-${system.id}`}
-                            x1="50%"
-                            y1={`${identityIdx * 85 + 75}px`}
-                            x2="66%"
-                            y2={`${systemIdx * 75 + 75}px`}
+                            key={`${lane2Target.id}-${lane3Target.id}`}
+                            x1="64%"
+                            y1={`${lane2Idx * 95 + 55}px`}
+                            x2="74%"
+                            y2={`${lane3Idx * 95 + 55}px`}
                             stroke="#86efac"
                             strokeWidth="2"
                             markerEnd="url(#arrowhead)"
@@ -355,21 +359,21 @@ export function PermissionsGraphPage() {
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="grid grid-cols-3 gap-6">
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Cross-Tenant Deployment</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Agent Connections</h4>
                 <p className="text-xs text-gray-600">
-                  This agent type operates across {new Set(filteredAgents.flatMap(a => identities.filter(i => i.agent_id === a.id).map(i => i.tenant))).size} different tenant{new Set(filteredAgents.flatMap(a => identities.filter(i => i.agent_id === a.id).map(i => i.tenant))).size !== 1 ? 's' : ''}
+                  {connections.filter(c => c.source_type === 'agent').length} connection{connections.filter(c => c.source_type === 'agent').length !== 1 ? 's' : ''} from agents
+                </p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">MCP Integration</h4>
+                <p className="text-xs text-gray-600">
+                  {lane2Nodes.filter(n => n.type === 'mcp').length} MCP server{lane2Nodes.filter(n => n.type === 'mcp').length !== 1 ? 's' : ''} in use
                 </p>
               </div>
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2">System Access</h4>
                 <p className="text-xs text-gray-600">
-                  Connected to {Array.from(new Set(filteredAgents.flatMap(agent => identities.filter(i => i.agent_id === agent.id).flatMap(identity => getSystemsForIdentity(identity.id).map(s => s.id))))).length} unique system{Array.from(new Set(filteredAgents.flatMap(agent => identities.filter(i => i.agent_id === agent.id).flatMap(identity => getSystemsForIdentity(identity.id).map(s => s.id))))).length !== 1 ? 's' : ''}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Total Permissions</h4>
-                <p className="text-xs text-gray-600">
-                  {filteredAgents.flatMap(agent => identities.filter(i => i.agent_id === agent.id).flatMap(identity => getIdentityPermissions(identity.id))).length} permission{filteredAgents.flatMap(agent => identities.filter(i => i.agent_id === agent.id).flatMap(identity => getIdentityPermissions(identity.id))).length !== 1 ? 's' : ''} granted
+                  {lane3Nodes.length} system{lane3Nodes.length !== 1 ? 's' : ''} accessed
                 </p>
               </div>
             </div>
