@@ -29,7 +29,7 @@ jobs:
           fi
 
           # Target Repository URL
-          TARGET_REPO="github.tools.sap/AIAM/agent-identity-ias-tenant-view.git"
+          TARGET_REPO="github.tools.sap/AIAM/agent-network-access-control.git"
           TARGET_URL="https://oauth2:$ENTERPRISE_TOKEN@$TARGET_REPO"
           
           echo "Adding enterprise remote..."
