@@ -48,7 +48,7 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          Identities
+          Users, Agents & Authorizations
         </button>
         <button
           onClick={() => onNavigate('meta-policies')}
