@@ -17,7 +17,6 @@ export interface Database {
           description: string
           provider: string
           status: string
-          labels: string[]
           created_at: string
           updated_at: string
         }
@@ -28,7 +27,6 @@ export interface Database {
           description?: string
           provider: string
           status?: string
-          labels?: string[]
           created_at?: string
           updated_at?: string
         }
@@ -39,7 +37,6 @@ export interface Database {
           description?: string
           provider?: string
           status?: string
-          labels?: string[]
           created_at?: string
           updated_at?: string
         }
