@@ -1,24 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Filter, Search, ChevronRight, Bot, ChevronDown, Settings, Network } from 'lucide-react';
+import { Plus, Trash2, Filter, Search, ChevronRight, Bot } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { ProviderBadge } from '../components/ProviderBadge';
 import { StatusBadge } from '../components/StatusBadge';
 
 type Agent = Database['public']['Tables']['agents']['Row'];
-type AgentIdentity = Database['public']['Tables']['agent_identities']['Row'];
-
-interface AgentWithIdentities extends Agent {
-  identities: AgentIdentity[];
-}
 
 interface AgentListPageProps {
   onSelectAgent: (agentId: string) => void;
 }
 
 export function AgentListPage({ onSelectAgent }: AgentListPageProps) {
-  const [agents, setAgents] = useState<AgentWithIdentities[]>([]);
-  const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -28,31 +22,13 @@ export function AgentListPage({ onSelectAgent }: AgentListPageProps) {
 
   const loadAgents = async () => {
     try {
-      const { data: agentsData } = await supabase
+      const { data, error } = await supabase
         .from('agents')
         .select('*')
         .order('name');
 
-      if (!agentsData) return;
-
-      const agentsWithIdentities = await Promise.all(
-        agentsData.map(async (agent) => {
-          const { data: identities } = await supabase
-            .from('agent_identities')
-            .select('*')
-            .eq('agent_id', agent.id)
-            .order('tenant');
-
-          return {
-            ...agent,
-            identities: identities || []
-          };
-        })
-      );
-
-      setAgents(agentsWithIdentities);
-      // Expand first 3 agents by default
-      setExpandedAgents(new Set(agentsWithIdentities.slice(0, 3).map(a => a.id)));
+      if (error) throw error;
+      setAgents(data || []);
     } catch (error) {
       console.error('Error loading agents:', error);
     } finally {
@@ -65,27 +41,20 @@ export function AgentListPage({ onSelectAgent }: AgentListPageProps) {
     agent.provider.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const toggleAgent = (agentId: string) => {
-    setExpandedAgents(prev => {
-      const next = new Set(prev);
-      if (next.has(agentId)) {
-        next.delete(agentId);
-      } else {
-        next.add(agentId);
-      }
-      return next;
-    });
-  };
+  const formatLastLogin = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  const getIdpIcon = (idpType: string) => {
-    return Network;
+    if (diffDays < 30) return 'about 1 month ago';
+    if (diffDays < 365) return `about ${Math.floor(diffDays / 30)} months ago`;
+    return `about ${Math.floor(diffDays / 365)} year ago`;
   };
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
   }
-
-  const totalIdentities = agents.reduce((sum, agent) => sum + agent.identities.length, 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -97,8 +66,8 @@ export function AgentListPage({ onSelectAgent }: AgentListPageProps) {
         </div>
 
         <div className="mb-6">
-          <h1 className="text-2xl font-normal text-gray-900 mb-1">Agent Identity Network Access</h1>
-          <p className="text-sm text-gray-600">{agents.length} agents with {totalIdentities} identities across multiple tenants</p>
+          <h1 className="text-2xl font-normal text-gray-900 mb-1">Agent Identity Management</h1>
+          <p className="text-sm text-gray-600">{agents.length} agents configured</p>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
@@ -129,86 +98,80 @@ export function AgentListPage({ onSelectAgent }: AgentListPageProps) {
             </div>
           </div>
 
-          <div className="divide-y divide-gray-200">
-            {filteredAgents.map((agent) => {
-              const isExpanded = expandedAgents.has(agent.id);
-              const IdpIcon = getIdpIcon(agent.identities[0]?.idp_type || '');
-
-              return (
-                <div key={agent.id} className="bg-white">
-                  <div className="flex items-center hover:bg-gray-50">
-                    <button
-                      onClick={() => toggleAgent(agent.id)}
-                      className="px-4 py-4 flex items-center gap-3 flex-1"
-                    >
-                      {isExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                      )}
-                      <div className="w-10 h-10 bg-blue-50 rounded flex items-center justify-center flex-shrink-0">
-                        <Bot className="w-5 h-5 text-[#0854A0]" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium text-gray-900">
-                            {agent.name} ({agent.identities.length} identities)
-                          </span>
-                          <ProviderBadge provider={agent.provider} />
-                          <StatusBadge status={agent.status} />
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="w-12 px-4 py-3">
+                    <input type="checkbox" className="rounded border-gray-300" />
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    Agent Name
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    ORD ID
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    Provider
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    User Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    Last Login
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredAgents.map((agent) => (
+                  <tr
+                    key={agent.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => onSelectAgent(agent.id)}
+                  >
+                    <td className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-50 rounded flex items-center justify-center flex-shrink-0">
+                          <Bot className="w-5 h-5 text-[#0854A0]" />
                         </div>
+                        <span className="text-sm font-medium text-[#0854A0] hover:underline">
+                          {agent.name}
+                        </span>
                       </div>
-                    </button>
-                    <button
-                      onClick={() => onSelectAgent(agent.id)}
-                      className="px-4 py-4 text-[#0854A0] hover:underline text-sm"
-                    >
-                      View Details
-                    </button>
-                  </div>
-
-                  {isExpanded && agent.identities.length > 0 && (
-                    <div className="bg-gray-50 border-t border-gray-200">
-                      {agent.identities.map((identity, idx) => (
-                        <div
-                          key={identity.id}
-                          className={`px-4 py-3 flex items-center gap-4 hover:bg-gray-100 ml-14 ${
-                            idx !== agent.identities.length - 1 ? 'border-b border-gray-100' : ''
-                          }`}
-                        >
-                          <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Bot className="w-4 h-4 text-[#0854A0]" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-900 mb-1">
-                              {identity.identity_name}
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <span className="text-xs text-gray-600 font-mono">{identity.identity_id}</span>
-                              <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded border border-blue-200">
-                                <IdpIcon className="w-3 h-3 text-blue-700" />
-                                <span className="text-xs text-blue-700">
-                                  {identity.idp_type} ({identity.idp_domain})
-                                </span>
-                              </div>
-                              <span className="text-xs text-gray-500">Tenant: {identity.tenant}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button className="p-1.5 hover:bg-gray-200 rounded">
-                              <Settings className="w-4 h-4 text-[#0854A0]" />
-                            </button>
-                            <button className="p-1.5 hover:bg-gray-200 rounded">
-                              <Network className="w-4 h-4 text-[#0854A0]" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="text-sm text-gray-600 font-mono">
+                        {agent.type.toLowerCase()}:agent:{agent.provider.toLowerCase()}:v1
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <ProviderBadge provider={agent.provider} />
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="text-sm text-gray-900">Agent</span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <StatusBadge status={agent.status} />
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="text-sm text-gray-600">
+                        {formatLastLogin(agent.created_at)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
