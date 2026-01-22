@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bot, Database, Network } from 'lucide-react';
+import { Bot, Database, Network, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database as DB } from '../lib/database.types';
 
@@ -13,7 +13,7 @@ export function PermissionsGraphPage() {
   const [identities, setIdentities] = useState<AgentIdentity[]>([]);
   const [systems, setSystems] = useState<System[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<string>('');
+  const [selectedAgentType, setSelectedAgentType] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export function PermissionsGraphPage() {
       setPermissions(permsRes.data || []);
 
       if (agentsRes.data && agentsRes.data.length > 0) {
-        setSelectedProvider(agentsRes.data[0].provider);
+        setSelectedAgentType(agentsRes.data[0].type);
       }
     } catch (error) {
       console.error('Error loading graph data:', error);
@@ -56,6 +56,16 @@ export function PermissionsGraphPage() {
     return '#6B7280';
   };
 
+  const getAgentTypeColor = (type: string) => {
+    const t = type.toLowerCase();
+    if (t.includes('budget') || t.includes('compliance')) return '#059669';
+    if (t.includes('order')) return '#0284c7';
+    if (t.includes('invoice')) return '#7c3aed';
+    if (t.includes('requisition')) return '#dc2626';
+    if (t.includes('contract')) return '#ea580c';
+    return '#6B7280';
+  };
+
   const getIdentityPermissions = (identityId: string) => {
     return permissions.filter(p => p.agent_identity_id === identityId);
   };
@@ -70,8 +80,8 @@ export function PermissionsGraphPage() {
     return <div className="p-6">Loading...</div>;
   }
 
-  const uniqueProviders = [...new Set(agents.map(a => a.provider))];
-  const filteredAgents = agents.filter(a => a.provider === selectedProvider);
+  const uniqueAgentTypes = [...new Set(agents.map(a => a.type))];
+  const filteredAgents = agents.filter(a => a.type === selectedAgentType);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -79,33 +89,36 @@ export function PermissionsGraphPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-normal text-gray-900 mb-2">Network Topology by Agent Type</h1>
           <p className="text-sm text-gray-600">
-            View network diagrams separated by agent provider
+            View how each agent type operates across different tenants and systems
           </p>
         </div>
 
         <div className="flex gap-2 mb-6 flex-wrap">
-          {uniqueProviders.map(provider => {
-            const providerAgents = agents.filter(a => a.provider === provider);
+          {uniqueAgentTypes.map(agentType => {
+            const typeAgents = agents.filter(a => a.type === agentType);
+            const typeIdentities = identities.filter(i =>
+              typeAgents.some(a => a.id === i.agent_id)
+            );
             return (
               <button
-                key={provider}
-                onClick={() => setSelectedProvider(provider)}
+                key={agentType}
+                onClick={() => setSelectedAgentType(agentType)}
                 className={`px-4 py-2 rounded-lg border-2 transition-all ${
-                  selectedProvider === provider
+                  selectedAgentType === agentType
                     ? 'border-current shadow-md'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
                 style={{
-                  backgroundColor: selectedProvider === provider
-                    ? `${getProviderColor(provider)}20`
+                  backgroundColor: selectedAgentType === agentType
+                    ? `${getAgentTypeColor(agentType)}20`
                     : 'white',
-                  color: getProviderColor(provider)
+                  color: getAgentTypeColor(agentType)
                 }}
               >
                 <div className="flex items-center gap-2">
-                  <Bot className="w-4 h-4" />
-                  <span className="font-medium">{provider}</span>
-                  <span className="text-xs opacity-70">({providerAgents.length})</span>
+                  <Shield className="w-4 h-4" />
+                  <span className="font-medium">{agentType}</span>
+                  <span className="text-xs opacity-70">({typeIdentities.length} instances)</span>
                 </div>
               </button>
             );
@@ -113,11 +126,36 @@ export function PermissionsGraphPage() {
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-medium text-gray-900">{selectedAgentType}</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {filteredAgents.length} agent{filteredAgents.length !== 1 ? 's' : ''} across{' '}
+                {new Set(filteredAgents.map(a => a.provider)).size} provider{new Set(filteredAgents.map(a => a.provider)).size !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {filteredAgents.map(agent => (
+                <div
+                  key={agent.id}
+                  className="px-3 py-1.5 rounded border text-xs font-medium"
+                  style={{
+                    borderColor: getProviderColor(agent.provider),
+                    backgroundColor: `${getProviderColor(agent.provider)}15`,
+                    color: getProviderColor(agent.provider)
+                  }}
+                >
+                  {agent.provider}
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="relative" style={{ minHeight: '600px' }}>
             <div className="grid grid-cols-3 gap-8">
               <div className="space-y-3">
                 <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-4">
-                  Agents ({filteredAgents.length})
+                  Agent Instances
                 </h3>
                 {filteredAgents.map((agent) => {
                   const agentIdentities = identities.filter(i => i.agent_id === agent.id);
@@ -125,7 +163,7 @@ export function PermissionsGraphPage() {
                     <div
                       key={agent.id}
                       id={`agent-${agent.id}`}
-                      className="rounded-lg p-3 border-2 transition-all"
+                      className="rounded-lg p-3 border-2 transition-all hover:shadow-md"
                       style={{
                         borderColor: getProviderColor(agent.provider),
                         backgroundColor: `${getProviderColor(agent.provider)}15`
@@ -138,8 +176,11 @@ export function PermissionsGraphPage() {
                         />
                         <span className="text-sm font-medium text-gray-900">{agent.name}</span>
                       </div>
-                      <div className="text-xs text-gray-600">
-                        {agentIdentities.length} identities
+                      <div className="text-xs text-gray-600 mb-1">
+                        {agent.provider}
+                      </div>
+                      <div className="text-xs" style={{ color: getProviderColor(agent.provider) }}>
+                        {agentIdentities.length} identit{agentIdentities.length !== 1 ? 'ies' : 'y'}
                       </div>
                     </div>
                   );
@@ -148,18 +189,19 @@ export function PermissionsGraphPage() {
 
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-4">
-                  Identities
+                  Identity Instances
                 </h3>
                 {filteredAgents.flatMap(agent =>
                   identities
                     .filter(i => i.agent_id === agent.id)
                     .map(identity => {
                       const identityPerms = getIdentityPermissions(identity.id);
+                      const agent = agents.find(a => a.id === identity.agent_id);
                       return (
                         <div
                           key={identity.id}
                           id={`identity-${identity.id}`}
-                          className="rounded-lg p-2 border-2 border-blue-200 bg-blue-50"
+                          className="rounded-lg p-2 border-2 border-blue-200 bg-blue-50 hover:shadow-md transition-all"
                         >
                           <div className="flex items-center gap-2 mb-1">
                             <Network className="w-3.5 h-3.5 text-blue-600" />
@@ -170,11 +212,24 @@ export function PermissionsGraphPage() {
                           <div className="text-xs text-gray-600 truncate">
                             {identity.tenant}
                           </div>
-                          {identityPerms.length > 0 && (
-                            <div className="text-xs text-green-600 mt-1">
-                              {identityPerms.length} perms
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            {agent && (
+                              <span
+                                className="text-xs px-1.5 py-0.5 rounded"
+                                style={{
+                                  backgroundColor: `${getProviderColor(agent.provider)}20`,
+                                  color: getProviderColor(agent.provider)
+                                }}
+                              >
+                                {agent.provider}
+                              </span>
+                            )}
+                            {identityPerms.length > 0 && (
+                              <span className="text-xs text-green-600">
+                                {identityPerms.length} perms
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })
@@ -183,7 +238,7 @@ export function PermissionsGraphPage() {
 
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-4">
-                  Systems
+                  Connected Systems
                 </h3>
                 {Array.from(
                   new Set(
@@ -202,7 +257,7 @@ export function PermissionsGraphPage() {
                       <div
                         key={system!.id}
                         id={`system-${system!.id}`}
-                        className="rounded-lg p-2 border-2 border-green-200 bg-green-50"
+                        className="rounded-lg p-2 border-2 border-green-200 bg-green-50 hover:shadow-md transition-all"
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <Database className="w-3.5 h-3.5 text-green-600" />
@@ -267,9 +322,9 @@ export function PermissionsGraphPage() {
                     <g key={`${agent.id}-${identity.id}`}>
                       <line
                         x1="33%"
-                        y1={`${agentIdx * 85 + 85}px`}
+                        y1={`${agentIdx * 95 + 85}px`}
                         x2="50%"
-                        y2={`${identityIdx * 65 + 65}px`}
+                        y2={`${identityIdx * 85 + 75}px`}
                         stroke="#93c5fd"
                         strokeWidth="2"
                         markerEnd="url(#arrowhead)"
@@ -281,9 +336,9 @@ export function PermissionsGraphPage() {
                           <line
                             key={`${identity.id}-${system.id}`}
                             x1="50%"
-                            y1={`${identityIdx * 65 + 65}px`}
+                            y1={`${identityIdx * 85 + 75}px`}
                             x2="66%"
-                            y2={`${systemIdx * 65 + 65}px`}
+                            y2={`${systemIdx * 75 + 75}px`}
                             stroke="#86efac"
                             strokeWidth="2"
                             markerEnd="url(#arrowhead)"
@@ -295,6 +350,29 @@ export function PermissionsGraphPage() {
                 });
               })}
             </svg>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <div className="grid grid-cols-3 gap-6">
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Cross-Tenant Deployment</h4>
+                <p className="text-xs text-gray-600">
+                  This agent type operates across {new Set(filteredAgents.flatMap(a => identities.filter(i => i.agent_id === a.id).map(i => i.tenant))).size} different tenant{new Set(filteredAgents.flatMap(a => identities.filter(i => i.agent_id === a.id).map(i => i.tenant))).size !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">System Access</h4>
+                <p className="text-xs text-gray-600">
+                  Connected to {Array.from(new Set(filteredAgents.flatMap(agent => identities.filter(i => i.agent_id === agent.id).flatMap(identity => getSystemsForIdentity(identity.id).map(s => s.id))))).length} unique system{Array.from(new Set(filteredAgents.flatMap(agent => identities.filter(i => i.agent_id === agent.id).flatMap(identity => getSystemsForIdentity(identity.id).map(s => s.id))))).length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Total Permissions</h4>
+                <p className="text-xs text-gray-600">
+                  {filteredAgents.flatMap(agent => identities.filter(i => i.agent_id === agent.id).flatMap(identity => getIdentityPermissions(identity.id))).length} permission{filteredAgents.flatMap(agent => identities.filter(i => i.agent_id === agent.id).flatMap(identity => getIdentityPermissions(identity.id))).length !== 1 ? 's' : ''} granted
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
