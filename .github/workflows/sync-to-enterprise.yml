@@ -9,7 +9,7 @@ on:
 jobs:
   sync:
     # Only run on the source GitHub repository, not on the enterprise mirror
-    if: github.repository == 'dinavinter/remix-of-agent-identity-hub'
+    if: github.repository == 'dinavinter/multi-cloud-agent-access-contol'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
