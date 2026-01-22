@@ -17,7 +17,6 @@ export interface Database {
           description: string
           provider: string
           status: string
-          labels: string[]
           created_at: string
           updated_at: string
         }
@@ -28,7 +27,6 @@ export interface Database {
           description?: string
           provider: string
           status?: string
-          labels?: string[]
           created_at?: string
           updated_at?: string
         }
@@ -39,7 +37,6 @@ export interface Database {
           description?: string
           provider?: string
           status?: string
-          labels?: string[]
           created_at?: string
           updated_at?: string
         }
@@ -140,17 +137,6 @@ export interface Database {
           from_agent_identity_id: string
           to_agent_identity_id: string
           connection_type: string
-          created_at: string
-        }
-      }
-      mcp_servers: {
-        Row: {
-          id: string
-          name: string
-          server_type: string
-          provider: string
-          description: string
-          endpoint: string
           created_at: string
         }
       }
