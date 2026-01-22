@@ -4,12 +4,13 @@ on:
   push:
     branches:
       - '**'
+      - '!gh-pages'
   workflow_dispatch:
 
 jobs:
   sync:
     # Only run on the source GitHub repository, not on the enterprise mirror
-    if: github.repository == 'dinavinter/multi-cloud-identity-network-access'
+    if: github.server_url == 'https://github.com'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,17 +27,20 @@ jobs:
             echo "Please set the ENTERPRISE_GITHUB_TOKEN secret in the repository settings."
             exit 1
           fi
-
           # Target Repository URL
-          TARGET_REPO="github.tools.sap/AIAM/multi-cloud-agent-access-control.git"
+          TARGET_REPO="github.tools.sap/AIAM/agent-network-access-control.git"
           TARGET_URL="https://oauth2:$ENTERPRISE_TOKEN@$TARGET_REPO"
           
           echo "Adding enterprise remote..."
           git remote add enterprise "$TARGET_URL"
           
           echo "Syncing branches..."
-          # Push all references from origin to enterprise
-          git push enterprise "refs/remotes/origin/*:refs/heads/*" --force
+          # Push all references from origin to enterprise, excluding gh-pages
+          git for-each-ref --format='%(refname:short)' refs/remotes/origin/ | grep -vFx "origin/gh-pages" | grep -vFx "origin/HEAD" | while read remote; do
+            branch=${remote#origin/}
+            echo "Pushing $branch..."
+            git push enterprise "$remote:refs/heads/$branch" --force
+          done
           
           echo "Syncing tags..."
           git push enterprise --tags --force
@@ -50,14 +54,17 @@ jobs:
             
             # Update homepage using jq
             jq --indent 2 --arg homepage "$HOMEPAGE_URL" '.homepage = $homepage' package.json > package.json.tmp && mv package.json.tmp package.json
+            # Update runs-on in deploy.yml for enterprise
+            echo "Updating deploy.yml runs-on to solinas..."
+            sed -i 's/runs-on: ubuntu-latest/runs-on: solinas/g' .github/workflows/deploy.yml
             
             # Configure git
             git config user.name "GitHub Action"
             git config user.email "action@github.com"
             
             # Commit the change
-            git add package.json
-            git commit -m "chore: update homepage for enterprise deployment" || echo "No changes to commit"
+            git add package.json .github/workflows/deploy.yml
+            git commit -m "chore: update homepage and runner for enterprise deployment" || echo "No changes to commit"
             
             BRANCH_NAME=${GITHUB_REF#refs/heads/}
             echo "Pushing modified branch $BRANCH_NAME..."
