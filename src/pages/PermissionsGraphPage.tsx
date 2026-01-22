@@ -211,197 +211,276 @@ export function PermissionsGraphPage() {
                 </div>
               </div>
 
-              <div className="space-y-6">
-                {agents.slice(0, 8).map((agent) => {
-                  const agentIdentities = identities.filter(i => i.agent_id === agent.id);
-                  const isExpanded = expandedAgents.has(agent.id);
-                  const isSelected = selectedNode === agent.id && selectedType === 'agent';
-                  const agentRules = getPolicyRulesForAgent(agent.id);
+              <div className="relative" style={{ minHeight: '800px' }}>
+                <div className="grid grid-cols-3 gap-8">
+                  {/* Agents Column */}
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-4">Agents</h3>
+                    {agents.slice(0, 12).map((agent, idx) => {
+                      const isSelected = selectedNode === agent.id && selectedType === 'agent';
+                      const agentRules = getPolicyRulesForAgent(agent.id);
+                      const agentIdentities = identities.filter(i => i.agent_id === agent.id);
 
-                  return (
-                    <div key={agent.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      {/* Agent Header */}
-                      <div className="flex items-center gap-3 mb-3">
-                        <button
-                          onClick={() => toggleAgent(agent.id)}
-                          className="p-1 hover:bg-gray-200 rounded transition-colors"
-                        >
-                          {isExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-gray-600" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-600" />
-                          )}
-                        </button>
+                      return (
                         <div
+                          key={agent.id}
+                          id={`agent-${agent.id}`}
                           onClick={() => {
                             setSelectedNode(agent.id);
                             setSelectedType('agent');
                           }}
-                          className={`flex-1 cursor-pointer transition-all ${
-                            isSelected ? 'ring-2 ring-[#0854A0] ring-offset-2 rounded-lg' : ''
+                          className={`cursor-pointer transition-all ${
+                            isSelected ? 'ring-2 ring-[#0854A0] ring-offset-2' : ''
                           }`}
                         >
                           <div
-                            className="rounded-lg p-3 border-2 hover:shadow-md transition-all"
+                            className="rounded-lg p-2.5 border-2 hover:shadow-md transition-all"
                             style={{
                               borderColor: getProviderColor(agent.provider),
-                              backgroundColor: `${getProviderColor(agent.provider)}08`
+                              backgroundColor: `${getProviderColor(agent.provider)}12`
                             }}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 mb-1">
                               <Bot
-                                className="w-5 h-5"
+                                className="w-4 h-4"
                                 style={{ color: getProviderColor(agent.provider) }}
                               />
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-gray-900">{agent.name}</p>
-                                <div className="flex items-center gap-3 mt-1">
-                                  <span className="text-xs text-gray-600">{agent.provider}</span>
-                                  <span className="text-xs text-gray-500">•</span>
-                                  <span className="text-xs text-gray-600">{agentIdentities.length} instances</span>
-                                  {agentRules.length > 0 && (
-                                    <>
-                                      <span className="text-xs text-gray-500">•</span>
-                                      <span className="text-xs text-blue-600">{agentRules.length} policies</span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
+                              <span className="text-xs font-medium text-gray-900 truncate">{agent.name}</span>
+                            </div>
+                            <div className="text-xs text-gray-600 flex items-center gap-2">
+                              <span className="truncate">{agent.provider}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-blue-600">{agentIdentities.length} inst</span>
+                              {agentRules.length > 0 && (
+                                <span className="text-xs text-orange-600">{agentRules.length} rules</span>
+                              )}
                             </div>
                           </div>
                         </div>
-                      </div>
+                      );
+                    })}
+                  </div>
 
-                      {/* Expanded Agent Identities */}
-                      {isExpanded && agentIdentities.length > 0 && (
-                        <div className="ml-8 space-y-3">
-                          {agentIdentities.map((identity) => {
-                            const identitySystems = getSystemsForIdentity(identity.id);
-                            const identityPerms = getIdentityPermissions(identity.id);
-                            const applicableMetaPolicies = getApplicableMetaPolicies(agent.id, identity.id);
-                            const isIdentitySelected = selectedNode === identity.id && selectedType === 'identity';
+                  {/* Identities Column */}
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-4">Identity Instances</h3>
+                    {identities.slice(0, 20).map((identity) => {
+                      const isSelected = selectedNode === identity.id && selectedType === 'identity';
+                      const identityPerms = getIdentityPermissions(identity.id);
+                      const agent = agents.find(a => a.id === identity.agent_id);
 
-                            return (
-                              <div key={identity.id} className="relative">
-                                <div className="flex items-start gap-4">
-                                  {/* Identity Node */}
-                                  <div className="flex-shrink-0 w-64">
-                                    <div
-                                      onClick={() => {
-                                        setSelectedNode(identity.id);
-                                        setSelectedType('identity');
-                                      }}
-                                      className={`cursor-pointer transition-all ${
-                                        isIdentitySelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
-                                      }`}
-                                    >
-                                      <div className="rounded-lg p-3 border-2 border-blue-200 bg-blue-50 hover:shadow-md transition-all">
-                                        <div className="flex items-center gap-2 mb-2">
-                                          <Network className="w-4 h-4 text-blue-600" />
-                                          <span className="text-xs font-medium text-blue-900">
-                                            Identity Instance
-                                          </span>
-                                        </div>
-                                        <p className="text-xs font-medium text-gray-900 mb-1 truncate">
-                                          {identity.identity_name}
-                                        </p>
-                                        <div className="space-y-1">
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-xs text-gray-600">Tenant:</span>
-                                            <span className="text-xs font-mono text-gray-900 truncate">{identity.tenant}</span>
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-xs text-gray-600">IDP:</span>
-                                            <span className="text-xs text-gray-900">{identity.idp_type}</span>
-                                          </div>
-                                          {identityPerms.length > 0 && (
-                                            <div className="text-xs text-blue-700 mt-1">
-                                              {identityPerms.length} permissions
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Connection to Systems with Policy Labels */}
-                                  {identitySystems.length > 0 && (
-                                    <>
-                                      <div className="flex flex-col items-center justify-center gap-2 pt-6">
-                                        <div className="relative">
-                                          <ArrowRight className="w-5 h-5 text-gray-400" />
-                                          {/* Edge Labels */}
-                                          {(showMetaPolicies || showSpecificPolicies || showPermissionTypes) && (
-                                            <div className="absolute top-6 left-0 min-w-32 space-y-1">
-                                              {showMetaPolicies && applicableMetaPolicies.length > 0 && (
-                                                <div className="bg-orange-50 border border-orange-200 px-2 py-1 rounded text-xs text-orange-700 whitespace-nowrap">
-                                                  Meta: {applicableMetaPolicies[0].name}
-                                                </div>
-                                              )}
-                                              {showSpecificPolicies && agentRules.length > 0 && (
-                                                <div className="bg-blue-50 border border-blue-200 px-2 py-1 rounded text-xs text-blue-700 whitespace-nowrap">
-                                                  {agentRules[0].action}: {agentRules[0].rule_attribute}
-                                                </div>
-                                              )}
-                                              {showPermissionTypes && identityPerms.length > 0 && (
-                                                <div className="bg-green-50 border border-green-200 px-2 py-1 rounded text-xs text-green-700 whitespace-nowrap">
-                                                  {identityPerms[0].permission_type}
-                                                </div>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      {/* Systems */}
-                                      <div className="flex-1 space-y-2">
-                                        {identitySystems.map((system) => {
-                                          const systemPerms = identityPerms.filter(p => p.system_id === system.id);
-                                          const isSystemSelected = selectedNode === system.id && selectedType === 'system';
-
-                                          return (
-                                            <div
-                                              key={system.id}
-                                              onClick={() => {
-                                                setSelectedNode(system.id);
-                                                setSelectedType('system');
-                                              }}
-                                              className={`cursor-pointer transition-all ${
-                                                isSystemSelected ? 'ring-2 ring-green-500 ring-offset-2' : ''
-                                              }`}
-                                            >
-                                              <div className="rounded-lg p-3 border-2 border-green-200 bg-green-50 hover:shadow-md transition-all">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                  <Database className="w-4 h-4 text-green-600" />
-                                                  <span className="text-xs font-medium text-green-900">
-                                                    {system.provider}
-                                                  </span>
-                                                </div>
-                                                <p className="text-sm font-medium text-gray-900 leading-tight">
-                                                  {system.name}
-                                                </p>
-                                                <p className="text-xs text-gray-600 mt-0.5">{system.system_type}</p>
-                                                {systemPerms.length > 0 && (
-                                                  <div className="mt-1 text-xs text-green-700">
-                                                    {systemPerms.length} APIs
-                                                  </div>
-                                                )}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
+                      return (
+                        <div
+                          key={identity.id}
+                          id={`identity-${identity.id}`}
+                          onClick={() => {
+                            setSelectedNode(identity.id);
+                            setSelectedType('identity');
+                          }}
+                          className={`cursor-pointer transition-all ${
+                            isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+                          }`}
+                        >
+                          <div className="rounded-lg p-2 border-2 border-blue-200 bg-blue-50 hover:shadow-md transition-all">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Network className="w-3.5 h-3.5 text-blue-600" />
+                              <span className="text-xs font-medium text-gray-900 truncate">
+                                {identity.identity_name}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-600 truncate">
+                              {identity.tenant}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-gray-500">{identity.idp_type}</span>
+                              {identityPerms.length > 0 && (
+                                <span className="text-xs text-green-600">{identityPerms.length} perms</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+
+                  {/* Systems Column */}
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-4">Systems</h3>
+                    {systems.slice(0, 20).map((system) => {
+                      const isSelected = selectedNode === system.id && selectedType === 'system';
+                      const systemPerms = permissions.filter(p => p.system_id === system.id);
+
+                      return (
+                        <div
+                          key={system.id}
+                          id={`system-${system.id}`}
+                          onClick={() => {
+                            setSelectedNode(system.id);
+                            setSelectedType('system');
+                          }}
+                          className={`cursor-pointer transition-all ${
+                            isSelected ? 'ring-2 ring-green-500 ring-offset-2' : ''
+                          }`}
+                        >
+                          <div className="rounded-lg p-2 border-2 border-green-200 bg-green-50 hover:shadow-md transition-all">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Database className="w-3.5 h-3.5 text-green-600" />
+                              <span className="text-xs font-medium text-gray-900 truncate">
+                                {system.name}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-600 truncate">
+                              {system.provider}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-gray-500">{system.system_type}</span>
+                              {systemPerms.length > 0 && (
+                                <span className="text-xs text-green-600">{systemPerms.length} APIs</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* SVG Overlay for Connections */}
+                <svg
+                  className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                  style={{ zIndex: 0 }}
+                >
+                  <defs>
+                    <marker
+                      id="arrowhead"
+                      markerWidth="10"
+                      markerHeight="10"
+                      refX="9"
+                      refY="3"
+                      orient="auto"
+                    >
+                      <polygon points="0 0, 10 3, 0 6" fill="#94a3b8" />
+                    </marker>
+                  </defs>
+
+                  {/* Draw connections from agents to identities to systems */}
+                  {agents.slice(0, 12).map((agent) => {
+                    const agentIdentities = identities.filter(i => i.agent_id === agent.id).slice(0, 3);
+                    const agentRules = getPolicyRulesForAgent(agent.id);
+
+                    return agentIdentities.map((identity, idx) => {
+                      const identitySystems = getSystemsForIdentity(identity.id).slice(0, 2);
+                      const identityPerms = getIdentityPermissions(identity.id);
+                      const applicableMetaPolicies = getApplicableMetaPolicies(agent.id, identity.id);
+
+                      return (
+                        <g key={`${agent.id}-${identity.id}`}>
+                          {/* Agent to Identity connection */}
+                          <line
+                            x1="33%"
+                            y1={`${agents.slice(0, 12).findIndex(a => a.id === agent.id) * 75 + 70}px`}
+                            x2="33%"
+                            y2={`${identities.slice(0, 20).findIndex(i => i.id === identity.id) * 58 + 70}px`}
+                            stroke="#93c5fd"
+                            strokeWidth="2"
+                            strokeDasharray="4"
+                            markerEnd="url(#arrowhead)"
+                          />
+
+                          {/* Identity to System connections */}
+                          {identitySystems.map((system) => (
+                            <g key={`${identity.id}-${system.id}`}>
+                              <line
+                                x1="66%"
+                                y1={`${identities.slice(0, 20).findIndex(i => i.id === identity.id) * 58 + 70}px`}
+                                x2="66%"
+                                y2={`${systems.slice(0, 20).findIndex(s => s.id === system.id) * 58 + 70}px`}
+                                stroke="#86efac"
+                                strokeWidth="2"
+                                strokeDasharray="4"
+                                markerEnd="url(#arrowhead)"
+                              />
+
+                              {/* Edge Labels */}
+                              {(showMetaPolicies && applicableMetaPolicies.length > 0) && (
+                                <g>
+                                  <rect
+                                    x="63%"
+                                    y={`${identities.slice(0, 20).findIndex(i => i.id === identity.id) * 58 + 50}px`}
+                                    width="80"
+                                    height="16"
+                                    fill="#fff7ed"
+                                    stroke="#fed7aa"
+                                    strokeWidth="1"
+                                    rx="3"
+                                  />
+                                  <text
+                                    x="63.5%"
+                                    y={`${identities.slice(0, 20).findIndex(i => i.id === identity.id) * 58 + 61}px`}
+                                    fontSize="9"
+                                    fill="#c2410c"
+                                    className="pointer-events-none"
+                                  >
+                                    M: {applicableMetaPolicies[0].name.substring(0, 10)}
+                                  </text>
+                                </g>
+                              )}
+
+                              {(showSpecificPolicies && agentRules.length > 0) && (
+                                <g>
+                                  <rect
+                                    x="63%"
+                                    y={`${identities.slice(0, 20).findIndex(i => i.id === identity.id) * 58 + 68}px`}
+                                    width="80"
+                                    height="16"
+                                    fill="#dbeafe"
+                                    stroke="#93c5fd"
+                                    strokeWidth="1"
+                                    rx="3"
+                                  />
+                                  <text
+                                    x="63.5%"
+                                    y={`${identities.slice(0, 20).findIndex(i => i.id === identity.id) * 58 + 79}px`}
+                                    fontSize="9"
+                                    fill="#1e40af"
+                                    className="pointer-events-none"
+                                  >
+                                    {agentRules[0].action}
+                                  </text>
+                                </g>
+                              )}
+
+                              {(showPermissionTypes && identityPerms.length > 0) && (
+                                <g>
+                                  <rect
+                                    x="63%"
+                                    y={`${identities.slice(0, 20).findIndex(i => i.id === identity.id) * 58 + 86}px`}
+                                    width="80"
+                                    height="16"
+                                    fill="#dcfce7"
+                                    stroke="#86efac"
+                                    strokeWidth="1"
+                                    rx="3"
+                                  />
+                                  <text
+                                    x="63.5%"
+                                    y={`${identities.slice(0, 20).findIndex(i => i.id === identity.id) * 58 + 97}px`}
+                                    fontSize="9"
+                                    fill="#166534"
+                                    className="pointer-events-none"
+                                  >
+                                    {identityPerms[0].permission_type}
+                                  </text>
+                                </g>
+                              )}
+                            </g>
+                          ))}
+                        </g>
+                      );
+                    });
+                  })}
+                </svg>
               </div>
 
               <div className="mt-8 pt-6 border-t border-gray-200">
