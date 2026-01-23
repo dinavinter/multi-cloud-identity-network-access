@@ -1,6 +1,6 @@
 {
   "name": "control.ai.authz.id",
-  "homepage": "https://control.ai.authz.id",
+  "homepage": "https://control.ai.authz.id/",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,7 +9,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "deploy": "npm run build && gh-pages -d dist -u 'github-actions-bot <support+actions@github.com>'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
+    "gh-pages": "^6.2.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
