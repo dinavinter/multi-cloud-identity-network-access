@@ -5,6 +5,12 @@ on:
     branches:
       - '**'
   workflow_dispatch:
+    inputs:
+      force_root:
+        description: 'Force deployment to root (overwrites main site)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -27,26 +33,33 @@ jobs:
       - name: Determine Base Path and Target Folder
         id: config
         run: |
-          if [[ "${{ github.ref_name }}" == "main" ]]; then
+          FORCE_ROOT="${{ inputs.force_root }}"
+          
+          if [[ "${{ github.ref_name }}" == "main" ]] || [[ "$FORCE_ROOT" == "true" ]]; then
             # If CNAME is used, main should be served from root path /
+            echo "Deploying to ROOT (Base Path: /)"
             echo "base_path=/" >> $GITHUB_OUTPUT
             echo "target_folder=." >> $GITHUB_OUTPUT
             echo "clean=true" >> $GITHUB_OUTPUT
           else
             # Feature branches are subdirectories
+            echo "Deploying to SUBDIRECTORY (Base Path: /${{ github.ref_name }}/)"
             echo "base_path=/${{ github.ref_name }}/" >> $GITHUB_OUTPUT
             echo "target_folder=${{ github.ref_name }}" >> $GITHUB_OUTPUT
             echo "clean=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Build
-        run: npm run build
+        run: |
+          npm run build
+          touch dist/.nojekyll
         env:
           BASE_PATH: ${{ steps.config.outputs.base_path }}
 
       - name: Deploy to GitHub Pages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CNAME_DOMAIN: control.ai.authz.id
         run: |
           # Dynamically determine the git host domain from github.server_url
           SERVER_URL="${{ github.server_url }}"
@@ -60,7 +73,7 @@ jobs:
           if [[ "${{ steps.config.outputs.clean }}" == "false" ]]; then
             ADD_FLAG="--add"
           else
-            # Only set CNAME for the main/root deployment
+            # Only set CNAME for the main/root deployment (clean=true)
             if [[ -n "$CNAME_DOMAIN" ]]; then
                CNAME_FLAG="--cname $CNAME_DOMAIN"
                
@@ -73,5 +86,5 @@ jobs:
           npx gh-pages -d dist -u "github-actions-bot <support+actions@github.com>" \
             --branch gh-pages \
             --dest "${{ steps.config.outputs.target_folder }}" \
-            $ADD_FLAG \
-            $CNAME_FLAG
+            $ADD_FLAG 
+            # $CNAME_FLAG
