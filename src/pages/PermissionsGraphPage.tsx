@@ -31,6 +31,16 @@ interface Identity {
   status: string;
   rules: PolicyRule[];
   instances: Instance[];
+  mcpDependencies: MCPServer[];
+}
+
+interface MCPServer {
+  id: string;
+  name: string;
+  server_type: string;
+  provider: string;
+  description: string;
+  endpoint: string;
 }
 
 interface AgentConfig {
@@ -110,6 +120,24 @@ export function PermissionsGraphPage() {
               approved: 15
             }
           }
+        ],
+        mcpDependencies: [
+          {
+            id: 'mcp-001',
+            name: 'mcp-commerce-products',
+            server_type: 'Commerce',
+            provider: 'SAP',
+            description: 'MCP server for commerce and product management',
+            endpoint: 'https://emea.mcp-commerce.sap.com/api'
+          },
+          {
+            id: 'mcp-002',
+            name: 'sap-ariba-procurement',
+            server_type: 'Procurement',
+            provider: 'SAP',
+            description: 'MCP server for Ariba procurement workflows',
+            endpoint: 'https://emea.mcp-ariba.sap.com/api'
+          }
         ]
       },
       {
@@ -134,6 +162,24 @@ export function PermissionsGraphPage() {
               blocked: 8,
               approved: 12
             }
+          }
+        ],
+        mcpDependencies: [
+          {
+            id: 'mcp-001',
+            name: 'mcp-commerce-products',
+            server_type: 'Commerce',
+            provider: 'SAP',
+            description: 'MCP server for commerce and product management',
+            endpoint: 'https://us.mcp-commerce.sap.com/api'
+          },
+          {
+            id: 'mcp-003',
+            name: 'mcp-analytics',
+            server_type: 'Analytics',
+            provider: 'SAP',
+            description: 'MCP server for data analytics and reporting',
+            endpoint: 'https://us.mcp-analytics.sap.com/api'
           }
         ]
       },
@@ -168,6 +214,24 @@ export function PermissionsGraphPage() {
               blocked: 1,
               approved: 18
             }
+          }
+        ],
+        mcpDependencies: [
+          {
+            id: 'mcp-002',
+            name: 'sap-ariba-procurement',
+            server_type: 'Procurement',
+            provider: 'SAP',
+            description: 'MCP server for Ariba procurement workflows',
+            endpoint: 'https://apac.mcp-ariba.sap.com/api'
+          },
+          {
+            id: 'mcp-004',
+            name: 'mcp-finance',
+            server_type: 'Finance',
+            provider: 'SAP',
+            description: 'MCP server for financial operations',
+            endpoint: 'https://apac.mcp-finance.sap.com/api'
           }
         ]
       }
@@ -296,7 +360,7 @@ export function PermissionsGraphPage() {
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-gray-500 mb-1">Identities & Instances</div>
+              <div className="text-sm text-gray-500 mb-1">Dependencies</div>
               <div className="flex items-center gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-semibold text-purple-600">{selectedAgent.identities.length}</div>
@@ -307,6 +371,12 @@ export function PermissionsGraphPage() {
                     {selectedAgent.identities.reduce((acc, id) => acc + id.instances.length, 0)}
                   </div>
                   <div className="text-xs text-gray-500">Instances</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-semibold text-orange-600">
+                    {selectedAgent.identities.reduce((acc, id) => acc + id.mcpDependencies.length, 0)}
+                  </div>
+                  <div className="text-xs text-gray-500">MCP Servers</div>
                 </div>
               </div>
             </div>
@@ -352,6 +422,20 @@ export function PermissionsGraphPage() {
               <span className="mt-2 text-sm font-medium text-gray-900">Instances</span>
               <span className="text-xs text-gray-500">
                 {selectedAgent.identities.reduce((acc, id) => acc + id.instances.length, 0)} instances
+              </span>
+            </div>
+            
+            <div className="flex flex-col items-center px-4">
+              <ArrowRight className="w-8 h-8 text-indigo-400" />
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <div className="w-20 h-20 bg-orange-100 rounded-xl flex items-center justify-center border-2 border-orange-300">
+                <Server className="w-10 h-10 text-orange-600" />
+              </div>
+              <span className="mt-2 text-sm font-medium text-gray-900">MCP Servers</span>
+              <span className="text-xs text-gray-500">
+                {selectedAgent.identities.reduce((acc, id) => acc + id.mcpDependencies.length, 0)} servers
               </span>
             </div>
           </div>
@@ -504,6 +588,47 @@ export function PermissionsGraphPage() {
                         ))}
                       </div>
                     </div>
+
+                    {/* MCP Server Dependencies for this Identity */}
+                    {identity.mcpDependencies && identity.mcpDependencies.length > 0 && (
+                      <div className="mt-4">
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                          MCP Server Dependencies ({identity.mcpDependencies.length})
+                        </div>
+                        <div className="space-y-3">
+                          {identity.mcpDependencies.map((mcp) => (
+                            <div
+                              key={mcp.id}
+                              className="bg-orange-50 rounded-lg p-4 border border-orange-200"
+                            >
+                              <div className="flex items-start gap-4">
+                                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <Server className="w-5 h-5 text-orange-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <span className="font-medium text-gray-900">{mcp.name}</span>
+                                    <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">
+                                      {mcp.server_type}
+                                    </span>
+                                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                                      {mcp.provider}
+                                    </span>
+                                  </div>
+                                  {mcp.description && (
+                                    <p className="text-sm text-gray-600 mb-2">{mcp.description}</p>
+                                  )}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500">Endpoint:</span>
+                                    <span className="text-xs font-mono text-gray-700">{mcp.endpoint}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -512,7 +637,7 @@ export function PermissionsGraphPage() {
         </div>
 
         {/* Summary Statistics */}
-        <div className="mt-6 grid grid-cols-4 gap-4">
+        <div className="mt-6 grid grid-cols-5 gap-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -566,6 +691,20 @@ export function PermissionsGraphPage() {
                   {selectedAgent.identities.reduce((acc: number, id: Identity) => acc + id.instances.length, 0)}
                 </div>
                 <div className="text-xs text-gray-500">Runtime Instances</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Server className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-semibold text-gray-900">
+                  {selectedAgent.identities.reduce((acc: number, id: Identity) => acc + id.mcpDependencies.length, 0)}
+                </div>
+                <div className="text-xs text-gray-500">MCP Servers</div>
               </div>
             </div>
           </div>
