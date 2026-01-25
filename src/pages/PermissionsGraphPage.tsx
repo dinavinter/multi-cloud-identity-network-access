@@ -68,6 +68,15 @@ export function PermissionsGraphPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(['agent-rules', 'identity-rules'])
   );
+  
+  // Interactive view toggles
+  const [viewStates, setViewStates] = useState({
+    agent: true,
+    identity: true,
+    instances: true,
+    servers: true,
+    systems: true
+  });
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -79,6 +88,13 @@ export function PermissionsGraphPage() {
       }
       return next;
     });
+  };
+
+  const toggleView = (key: keyof typeof viewStates) => {
+    setViewStates(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
   };
 
   // Sample focused agent with full dependency chain
@@ -472,77 +488,170 @@ export function PermissionsGraphPage() {
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Identity Flow</h3>
           <div className="flex items-center justify-center gap-4 py-6">
-            <div className="flex flex-col items-center">
-              <div className="w-20 h-20 bg-blue-100 rounded-xl flex items-center justify-center border-2 border-blue-300">
-                <Bot className="w-10 h-10 text-blue-600" />
+            <button 
+              type="button"
+              className="flex flex-col items-center cursor-pointer transition-all hover:scale-105 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
+              onClick={() => toggleView('agent')}
+              onMouseDown={(e) => e.currentTarget.blur()}
+              aria-label="Toggle agent visibility"
+            >
+              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${
+                viewStates.agent 
+                  ? 'bg-blue-100 border-blue-300' 
+                  : 'bg-gray-100 border-gray-300 grayscale opacity-50'
+              }`}>
+                <Bot className={`w-10 h-10 transition-all pointer-events-none ${
+                  viewStates.agent ? 'text-blue-600' : 'text-gray-400'
+                }`} />
               </div>
-              <span className="mt-2 text-sm font-medium text-gray-900">Agent</span>
-              <span className="text-xs text-gray-500">Type</span>
-            </div>
+              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${
+                viewStates.agent ? 'text-gray-900' : 'text-gray-400'
+              }`}>Agent</span>
+              <span className={`text-xs transition-all pointer-events-none ${
+                viewStates.agent ? 'text-gray-500' : 'text-gray-400'
+              }`}>Type</span>
+            </button>
             
             <div className="flex flex-col items-center px-4">
-              <ArrowRight className="w-8 h-8 text-blue-400" />
-              <span className="text-xs text-gray-500 mt-1">{selectedAgent.identityRules.length} rules</span>
+              <ArrowRight className={`w-8 h-8 transition-all ${
+                viewStates.agent && viewStates.identity ? 'text-blue-400' : 'text-gray-300'
+              }`} />
+              <span className={`text-xs mt-1 transition-all ${
+                viewStates.agent && viewStates.identity ? 'text-gray-500' : 'text-gray-300'
+              }`}>{selectedAgent.identityRules.length} rules</span>
             </div>
             
-            <div className="flex flex-col items-center">
-              <div className="w-20 h-20 bg-purple-100 rounded-xl flex items-center justify-center border-2 border-purple-300">
-                <User className="w-10 h-10 text-purple-600" />
+            <button 
+              type="button"
+              className="flex flex-col items-center cursor-pointer transition-all hover:scale-105 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 rounded"
+              onClick={() => toggleView('identity')}
+              onMouseDown={(e) => e.currentTarget.blur()}
+              aria-label="Toggle identity visibility"
+            >
+              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${
+                viewStates.identity 
+                  ? 'bg-purple-100 border-purple-300' 
+                  : 'bg-gray-100 border-gray-300 grayscale opacity-50'
+              }`}>
+                <User className={`w-10 h-10 transition-all pointer-events-none ${
+                  viewStates.identity ? 'text-purple-600' : 'text-gray-400'
+                }`} />
               </div>
-              <span className="mt-2 text-sm font-medium text-gray-900">Identity</span>
-              <span className="text-xs text-gray-500">Instances</span>
-            </div>
+              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${
+                viewStates.identity ? 'text-gray-900' : 'text-gray-400'
+              }`}>Identity</span>
+              <span className={`text-xs transition-all pointer-events-none ${
+                viewStates.identity ? 'text-gray-500' : 'text-gray-400'
+              }`}>Instances</span>
+            </button>
             
             <div className="flex flex-col items-center px-4">
-              <ArrowRight className="w-8 h-8 text-purple-400" />
-              <span className="text-xs text-gray-500 mt-1">
+              <ArrowRight className={`w-8 h-8 transition-all ${
+                viewStates.identity && viewStates.instances ? 'text-purple-400' : 'text-gray-300'
+              }`} />
+              <span className={`text-xs mt-1 transition-all ${
+                viewStates.identity && viewStates.instances ? 'text-gray-500' : 'text-gray-300'
+              }`}>
                 {selectedAgent.identities.reduce((acc, id) => acc + id.rules.length, 0)} instances
               </span>
             </div>
             
-            <div className="flex flex-col items-center">
-              <div className="w-20 h-20 bg-indigo-100 rounded-xl flex items-center justify-center border-2 border-indigo-300">
-                <Users className="w-10 h-10 text-indigo-600" />
+            <button 
+              type="button"
+              className="flex flex-col items-center cursor-pointer transition-all hover:scale-105 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded"
+              onClick={() => toggleView('instances')}
+              onMouseDown={(e) => e.currentTarget.blur()}
+              aria-label="Toggle instances visibility"
+            >
+              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${
+                viewStates.instances 
+                  ? 'bg-indigo-100 border-indigo-300' 
+                  : 'bg-gray-100 border-gray-300 grayscale opacity-50'
+              }`}>
+                <Users className={`w-10 h-10 transition-all pointer-events-none ${
+                  viewStates.instances ? 'text-indigo-600' : 'text-gray-400'
+                }`} />
               </div>
-              <span className="mt-2 text-sm font-medium text-gray-900">Instances</span>
-              <span className="text-xs text-gray-500">
+              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${
+                viewStates.instances ? 'text-gray-900' : 'text-gray-400'
+              }`}>Instances</span>
+              <span className={`text-xs transition-all pointer-events-none ${
+                viewStates.instances ? 'text-gray-500' : 'text-gray-400'
+              }`}>
                 {selectedAgent.identities.reduce((acc, id) => acc + id.instances.length, 0)} instances
               </span>
-            </div>
+            </button>
             
             <div className="flex flex-col items-center px-4">
-              <ArrowRight className="w-8 h-8 text-indigo-400" />
+              <ArrowRight className={`w-8 h-8 transition-all ${
+                viewStates.instances && viewStates.servers ? 'text-indigo-400' : 'text-gray-300'
+              }`} />
             </div>
             
-            <div className="flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-100 rounded-xl flex items-center justify-center border-2 border-orange-300">
-                <Server className="w-10 h-10 text-orange-600" />
+            <button 
+              type="button"
+              className="flex flex-col items-center cursor-pointer transition-all hover:scale-105 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 rounded"
+              onClick={() => toggleView('servers')}
+              onMouseDown={(e) => e.currentTarget.blur()}
+              aria-label="Toggle MCP servers visibility"
+            >
+              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${
+                viewStates.servers 
+                  ? 'bg-orange-100 border-orange-300' 
+                  : 'bg-gray-100 border-gray-300 grayscale opacity-50'
+              }`}>
+                <Server className={`w-10 h-10 transition-all pointer-events-none ${
+                  viewStates.servers ? 'text-orange-600' : 'text-gray-400'
+                }`} />
               </div>
-              <span className="mt-2 text-sm font-medium text-gray-900">MCP Servers</span>
-              <span className="text-xs text-gray-500">
+              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${
+                viewStates.servers ? 'text-gray-900' : 'text-gray-400'
+              }`}>MCP Servers</span>
+              <span className={`text-xs transition-all pointer-events-none ${
+                viewStates.servers ? 'text-gray-500' : 'text-gray-400'
+              }`}>
                 {selectedAgent.identities.reduce((acc, id) => acc + id.mcpDependencies.length, 0)} servers
               </span>
-            </div>
+            </button>
             
             <div className="flex flex-col items-center px-4">
-              <ArrowRight className="w-8 h-8 text-orange-400" />
+              <ArrowRight className={`w-8 h-8 transition-all ${
+                viewStates.servers && viewStates.systems ? 'text-orange-400' : 'text-gray-300'
+              }`} />
             </div>
             
-            <div className="flex flex-col items-center">
-              <div className="w-20 h-20 bg-green-100 rounded-xl flex items-center justify-center border-2 border-green-300">
-                <Database className="w-10 h-10 text-green-600" />
+            <button 
+              type="button"
+              className="flex flex-col items-center cursor-pointer transition-all hover:scale-105 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 rounded"
+              onClick={() => toggleView('systems')}
+              onMouseDown={(e) => e.currentTarget.blur()}
+              aria-label="Toggle systems visibility"
+            >
+              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${
+                viewStates.systems 
+                  ? 'bg-green-100 border-green-300' 
+                  : 'bg-gray-100 border-gray-300 grayscale opacity-50'
+              }`}>
+                <Database className={`w-10 h-10 transition-all pointer-events-none ${
+                  viewStates.systems ? 'text-green-600' : 'text-gray-400'
+                }`} />
               </div>
-              <span className="mt-2 text-sm font-medium text-gray-900">Systems</span>
-              <span className="text-xs text-gray-500">
+              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${
+                viewStates.systems ? 'text-gray-900' : 'text-gray-400'
+              }`}>Systems</span>
+              <span className={`text-xs transition-all pointer-events-none ${
+                viewStates.systems ? 'text-gray-500' : 'text-gray-400'
+              }`}>
                 {selectedAgent.identities.reduce((acc, id) => 
                   acc + id.mcpDependencies.reduce((sum, mcp) => sum + mcp.systems.length, 0), 0
                 )} systems
               </span>
-            </div>
+            </button>
           </div>
         </div>
 
         {/* Agent Identity Rules */}
+        {viewStates.agent && (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
           <button
             onClick={() => toggleSection('agent-rules')}
@@ -575,8 +684,10 @@ export function PermissionsGraphPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Identities with Instances */}
+        {viewStates.identity && (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
           <button
             onClick={() => toggleSection('identity-rules')}
@@ -641,7 +752,8 @@ export function PermissionsGraphPage() {
                     </div>
 
                     {/* Instances */}
-                    <div>
+                    {viewStates.instances && (
+                      <div>
                       <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
                         Runtime Instances ({identity.instances.length})
                       </div>
@@ -689,9 +801,10 @@ export function PermissionsGraphPage() {
                         ))}
                       </div>
                     </div>
+                    )}
 
                     {/* MCP Server Dependencies for this Identity */}
-                    {identity.mcpDependencies && identity.mcpDependencies.length > 0 && (
+                    {viewStates.servers && identity.mcpDependencies && identity.mcpDependencies.length > 0 && (
                       <div className="mt-4">
                         <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
                           MCP Server Dependencies ({identity.mcpDependencies.length})
@@ -727,7 +840,7 @@ export function PermissionsGraphPage() {
                               </div>
 
                               {/* Systems called from this MCP Server */}
-                              {mcp.systems && mcp.systems.length > 0 && (
+                              {viewStates.systems && mcp.systems && mcp.systems.length > 0 && (
                                 <div className="ml-14 mt-3 pt-3 border-t border-orange-200">
                                   <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
                                     Systems ({mcp.systems.length})
@@ -773,6 +886,7 @@ export function PermissionsGraphPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Summary Statistics */}
         <div className="mt-6 grid grid-cols-6 gap-4">
