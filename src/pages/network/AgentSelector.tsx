@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Bot, Search, Check, Loader2, Database, Zap } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { AgentConfig, agents, Identity} from './agentData';
+import { AgentType, agents, Identity } from './agentData';
 
 
 interface AgentSelectorProps {
   selectedAgentId: string | null;
-  onSelectAgent: (agent: AgentConfig | null) => void;
-  agents: AgentConfig[];
+  onSelectAgent: (agent: AgentType | null) => void;
+  agents: AgentType[];
 }
 
 // Simulated agents for demo purposes
@@ -18,7 +18,7 @@ export default function AgentSelector({ selectedAgentId, onSelectAgent, agents }
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
- 
+
 
   const filteredAgents = agents.filter(agent =>
     agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -26,7 +26,7 @@ export default function AgentSelector({ selectedAgentId, onSelectAgent, agents }
     agent.region.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSelectAgent = (agent: AgentConfig) => {
+  const handleSelectAgent = (agent: AgentType) => {
     // If using real data, we need to fetch full agent details
     loadFullAgentData(agent.id);
   };
@@ -39,20 +39,23 @@ export default function AgentSelector({ selectedAgentId, onSelectAgent, agents }
       const agentData = agents.find(agent => agent.id === agentId);
 
       if (agentData) {
-        const fullAgent: AgentConfig = {
+        const fullAgent: AgentType = {
           ...agentData,
           identities: agentData.identities.map((identity: Identity) => ({
             id: identity.id,
             identity_name: identity.identity_name,
             identity_id: identity.identity_id,
             tenant: identity.tenant,
+            subaccount: identity.subaccount,
+            applications: identity.applications || [],
             idp_type: identity.idp_type,
             idp_domain: identity.idp_domain,
             status: identity.status,
-            rules: [],
-            instances: [],
-            agentDependencies: [],
-            mcpDependencies: []
+            identityRules: identity.identityRules || [],
+            tenantRuleIds: identity.tenantRuleIds || [],
+            instances: identity.instances || [],
+            agentDependencies: identity.agentDependencies || [],
+            mcpDependencies: identity.mcpDependencies || []
           }))
         };
         onSelectAgent(fullAgent);
@@ -71,7 +74,7 @@ export default function AgentSelector({ selectedAgentId, onSelectAgent, agents }
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <Bot className="w-5 h-5 text-blue-600" />
             Agent Selector
-          </h3> 
+          </h3>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -102,11 +105,10 @@ export default function AgentSelector({ selectedAgentId, onSelectAgent, agents }
                 <button
                   key={agent.id}
                   onClick={() => handleSelectAgent(agent)}
-                  className={`w-full text-left p-3 rounded-lg border transition-all ${
-                    isSelected
-                      ? 'bg-blue-50 border-blue-300 shadow-sm'
-                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
-                  }`}
+                  className={`w-full text-left p-3 rounded-lg border transition-all ${isSelected
+                    ? 'bg-blue-50 border-blue-300 shadow-sm'
+                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -154,7 +156,7 @@ export default function AgentSelector({ selectedAgentId, onSelectAgent, agents }
       <div className="p-4 border-t border-gray-200 bg-gray-50">
         <div className="text-xs text-gray-600">
           <div className="font-medium mb-1">Total Agents: {agents.length}</div>
-       
+
         </div>
       </div>
     </div>

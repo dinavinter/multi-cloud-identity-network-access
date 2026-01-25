@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Bot, ShieldCheck, Container, Boxes, HardDrive, Activity, Network } from 'lucide-react';
-import { AgentConfig } from './agentData';
+import { AgentType } from './agentData';
 
 interface IdentityFlowProps {
-  data: AgentConfig;
+  data: AgentType;
 }
 
 interface GraphNode {
@@ -70,7 +70,7 @@ export default function NetworkGraph({ data }: IdentityFlowProps) {
         region: data.region,
         provider: data.provider,
         status: 'Active',
-        rules: data.rules.length
+        rules: data.typeRules.length
       }
     });
 
@@ -99,7 +99,7 @@ export default function NetworkGraph({ data }: IdentityFlowProps) {
           tenant: identity.tenant,
           idp_type: identity.idp_type,
           status: identity.status,
-          rules: identity.rules.length,
+          rules: identity.identityRules.length,
           audit_logs: totalAuditLogs
         }
       });
@@ -204,7 +204,7 @@ export default function NetworkGraph({ data }: IdentityFlowProps) {
               region: agent.region,
               provider: agent.provider,
               status: 'Active',
-              rules: agent.rules.length
+              rules: agent.typeRules.length
             }
           });
         }
@@ -266,10 +266,10 @@ export default function NetworkGraph({ data }: IdentityFlowProps) {
         <svg width="100%" height="100%" className="absolute inset-0">
           <defs>
             <filter id="glow">
-              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feGaussianBlur stdDeviation="4" result="coloredBlur" />
               <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
             <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">

@@ -1,12 +1,14 @@
-export interface AgentConfig {
+export interface AgentType {
     id: string;
     name: string;
     type: string;
     provider: string;
+    system: string; // System/provider like S4, Concur, Customer Managed
+    codePurpose: string; // Agent nature - links to code purpose
+    systemPrompts: string[]; // System prompts for the agent
     region: string;
-    subaccount: string;
     labels: string[];
-    rules: Rule[];
+    typeRules: Rule[]; // Organization-defined rules at type level (cannot escalate global rules, only restrict/configure)
     identities: Identity[];
   }
   
@@ -30,13 +32,23 @@ export interface AgentConfig {
     identity_name: string;
     identity_id: string;
     tenant: string;
+    subaccount: string; // Subaccount linked to this identity
+    applications: Application[]; // Applications linked to this identity
     idp_type: string;
     idp_domain: string;
     status: string;
-    rules: Rule[];
+    identityRules: Rule[]; // Identity-specific rules (can restrict more but cannot escalate over type rules)
+    tenantRuleIds?: string[]; // References to tenant-specific rules from meta_policies (scope='tenant')
     instances: Instance[];
-    agentDependencies?: AgentConfig[];
+    agentDependencies?: AgentType[];
     mcpDependencies?: MCPServer[];
+  }
+
+  export interface Application {
+    id: string;
+    name: string;
+    application_type: string;
+    description?: string;
   }
   
   export interface Instance {
@@ -68,17 +80,24 @@ export interface AgentConfig {
     description: string;
   }
   
-  export const agentData: AgentConfig = {
+  export const agentData: AgentType = {
     id: 'procurement-agent-001',
     name: 'Procurement Agent',
     type: 'Procurement Orchestration',
     provider: 'SAP',
+    system: 'S4', // System: S4, Concur, Customer Managed, etc.
+    codePurpose: 'Automate procurement workflows including purchase order creation, vendor management, and invoice processing',
+    systemPrompts: [
+      'You are a procurement automation agent responsible for managing purchase orders and vendor relationships.',
+      'Always verify vendor credentials before processing orders.',
+      'Maintain compliance with procurement policies and approval workflows.'
+    ],
     region: 'EMEA',
-    subaccount: 'Global',
     labels: ['env:production', 'team:procurement', 'hr'],
-    rules: [
+    typeRules: [
+      // Type-level rules: cannot escalate global rules, only restrict more or configure actions
       { id: '1', action: 'Allow', targetType: 'Agent', conditions: [{ attribute: 'agent.region', operator: '=', value: 'EMEA' }] },
-      { id: '2', action: 'Allow', targetType: 'Agent', conditions: [{ attribute: 'agent.subaccount', operator: '=', value: 'Global' }] },
+      { id: '2', action: 'Ask For Consent', targetType: 'Tools', targetSpecifier: 'risk-level:high', conditions: [{ attribute: 'tool.risk_level', operator: '=', value: 'high' }] },
       { id: '3', action: 'Allow', targetType: 'Agent', actingAs: 'User', conditions: [{ attribute: 'user.location', operator: '=', value: 'agent.region' }] },
     ],
     identities: [
@@ -87,13 +106,20 @@ export interface AgentConfig {
         identity_name: 'Procurement Agent EMEA',
         identity_id: 'A532408',
         tenant: 'EMEA',
+        subaccount: 'EMEA-Production',
+        applications: [
+          { id: 'app-001', name: 'SAP Ariba', application_type: 'Procurement', description: 'Procurement and sourcing platform' },
+          { id: 'app-002', name: 'SAP S/4HANA', application_type: 'ERP', description: 'Enterprise resource planning system' }
+        ],
         idp_type: 'SAP IAS',
         idp_domain: 'ias.accounts.sap.com',
         status: 'Active',
-        rules: [
-          { id: 'i1', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '=', value: 'EMEA' }] },
-          { id: 'i2', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.idp_type', operator: '=', value: 'SAP IAS' }] },
+        identityRules: [
+          // Identity-specific rules: can restrict more but cannot escalate over type rules
+          { id: 'i1', action: 'Deny', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '!=', value: 'EMEA' }] },
+          { id: 'i2', action: 'Ask For Consent', targetType: 'Tools', targetSpecifier: 'category:financial', conditions: [{ attribute: 'tool.category', operator: '=', value: 'financial' }] },
         ],
+        tenantRuleIds: ['tenant-rule-emea-001'], // References to tenant-specific rules from meta_policies
         instances: [
           {
             id: 'instance-001',
@@ -159,13 +185,20 @@ export interface AgentConfig {
         identity_name: 'Procurement Agent US',
         identity_id: 'A532409',
         tenant: 'US',
+        subaccount: 'US-Production',
+        applications: [
+          { id: 'app-003', name: 'SAP Ariba', application_type: 'Procurement', description: 'Procurement and sourcing platform' },
+          { id: 'app-004', name: 'SAP Concur', application_type: 'Expense Management', description: 'Travel and expense management' }
+        ],
         idp_type: 'Azure AD',
         idp_domain: 'login.microsoftonline.com',
         status: 'Active',
-        rules: [
-          { id: 'i3', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '=', value: 'US' }] },
+        identityRules: [
+          // Identity-specific rules: can restrict more but cannot escalate over type rules
+          { id: 'i3', action: 'Deny', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '!=', value: 'US' }] },
           { id: 'i4', action: 'Ask For Consent', targetType: 'Identity', conditions: [{ attribute: 'identity.idp_type', operator: '=', value: 'Azure AD' }] },
         ],
+        tenantRuleIds: ['tenant-rule-us-001'], // References to tenant-specific rules from meta_policies
         instances: [
           {
             id: 'instance-003',
@@ -181,10 +214,12 @@ export interface AgentConfig {
             name: 'Procurement Agent EMEA',
             type: 'Procurement Orchestration',
             provider: 'SAP',
+            system: 'S4',
+            codePurpose: 'Procurement workflow automation',
+            systemPrompts: ['Automate procurement processes'],
             region: 'EMEA',
-            subaccount: 'Global',
             labels: ['env:production', 'team:procurement', 'hr'],
-            rules: [
+            typeRules: [
               { id: '1', action: 'Allow', targetType: 'Tools', targetSpecifier: 'id: xyz' },
               { id: '2', action: 'Allow', targetType: 'Tools', targetSpecifier: 'id: abc' },
               { id: '3', action: 'Allow', targetType: 'Tools', targetSpecifier: 'id: def' },
@@ -196,10 +231,12 @@ export interface AgentConfig {
             name: 'Finance Agent',
             type: 'Finance Orchestration',
             provider: 'SAP',
+            system: 'S4',
+            codePurpose: 'Financial operations automation',
+            systemPrompts: ['Automate financial reporting and transactions'],
             region: 'US',
-            subaccount: 'Global',
             labels: ['env:production', 'team:finance'],
-            rules: [
+            typeRules: [
               { id: 'f1', action: 'Allow', targetType: 'Tools', targetSpecifier: 'id: finance-001' },
               { id: 'f2', action: 'Ask For Consent', targetType: 'Tools', targetSpecifier: 'id: finance-002' },
             ],
@@ -255,12 +292,19 @@ export interface AgentConfig {
         identity_name: 'Procurement Agent APAC',
         identity_id: 'A532410',
         tenant: 'APAC',
+        subaccount: 'APAC-Production',
+        applications: [
+          { id: 'app-005', name: 'SAP Ariba', application_type: 'Procurement', description: 'Procurement and sourcing platform' },
+          { id: 'app-006', name: 'Customer Managed Portal', application_type: 'Custom', description: 'Customer-managed procurement portal' }
+        ],
         idp_type: 'Okta',
         idp_domain: 'okta.com',
         status: 'Active',
-        rules: [
-          { id: 'i5', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '=', value: 'APAC' }] },
+        identityRules: [
+          // Identity-specific rules: can restrict more but cannot escalate over type rules
+          { id: 'i5', action: 'Deny', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '!=', value: 'APAC' }] },
         ],
+        tenantRuleIds: ['tenant-rule-apac-001'], // References to tenant-specific rules from meta_policies
         instances: [
           {
             id: 'instance-004',
@@ -317,17 +361,22 @@ export interface AgentConfig {
     ]
   };
   
-  export const agents: AgentConfig[] = [
+  export const agents: AgentType[] = [
     agentData, // Full procurement agent data
     {
       id: 'finance-agent-001',
       name: 'Finance Agent',
       type: 'Finance Orchestration',
       provider: 'SAP',
+      system: 'S4',
+      codePurpose: 'Financial operations and reporting automation',
+      systemPrompts: [
+        'You are a finance automation agent responsible for financial reporting and transaction processing.',
+        'Ensure all financial operations comply with accounting standards and regulations.'
+      ],
       region: 'US',
-      subaccount: 'Global',
       labels: ['env:production', 'team:finance'],
-      rules: [],
+      typeRules: [],
       identities: []
     },
     {
@@ -335,10 +384,15 @@ export interface AgentConfig {
       name: 'HR Agent',
       type: 'HR Orchestration',
       provider: 'SAP',
+      system: 'SuccessFactors',
+      codePurpose: 'Human resources management and employee lifecycle automation',
+      systemPrompts: [
+        'You are an HR automation agent responsible for managing employee data and HR processes.',
+        'Maintain strict confidentiality of employee information.'
+      ],
       region: 'APAC',
-      subaccount: 'Global',
       labels: ['env:production', 'team:hr'],
-      rules: [],
+      typeRules: [],
       identities: []
     },
     {
@@ -346,10 +400,15 @@ export interface AgentConfig {
       name: 'Sales Agent',
       type: 'Sales Orchestration',
       provider: 'SAP',
+      system: 'Sales Cloud',
+      codePurpose: 'Sales process automation and customer relationship management',
+      systemPrompts: [
+        'You are a sales automation agent responsible for managing sales opportunities and customer relationships.',
+        'Track all sales activities and maintain accurate customer records.'
+      ],
       region: 'US',
-      subaccount: 'Global',
       labels: ['env:production', 'team:sales'],
-      rules: [],
+      typeRules: [],
       identities: []
     }
   ];

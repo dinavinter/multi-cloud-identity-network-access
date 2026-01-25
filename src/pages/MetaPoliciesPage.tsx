@@ -27,11 +27,25 @@ export function MetaPoliciesPage() {
       const { data, error } = await supabase
         .from('meta_policies')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setPolicies(data || []);
-      setExpandedPolicies(new Set(data?.map(p => p.id) || []));
+      
+      // Sort policies: Global Agent Security Policy first, then by created_at
+      const sortedPolicies = (data || []).sort((a, b) => {
+        // Put "Global Agent Security Policy" at the top
+        if (a.name === 'Global Agent Security Policy' && b.name !== 'Global Agent Security Policy') {
+          return -1;
+        }
+        if (b.name === 'Global Agent Security Policy' && a.name !== 'Global Agent Security Policy') {
+          return 1;
+        }
+        // For others, maintain created_at ascending order
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      });
+      
+      setPolicies(sortedPolicies);
+      setExpandedPolicies(new Set(sortedPolicies.map(p => p.id)));
     } catch (error) {
       console.error('Error loading meta policies:', error);
     } finally {

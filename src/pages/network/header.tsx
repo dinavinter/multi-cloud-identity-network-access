@@ -1,8 +1,8 @@
 import { Bot, ShieldCheck, Container, Boxes, HardDrive, ArrowRight } from 'lucide-react';
-import { AgentConfig } from './agentData';
+import { AgentType } from './agentData';
 
 interface IdentityFlowProps {
-  data: AgentConfig;
+  data: AgentType;
 }
 
 export default function IdentityFlow({ data }: IdentityFlowProps) {
@@ -11,7 +11,7 @@ export default function IdentityFlow({ data }: IdentityFlowProps) {
   const totalSystems = new Set(data.identities.flatMap(identity =>
     identity.mcpDependencies?.flatMap(mcp => mcp.systems.map(sys => sys.id)) || []
   )).size;
-  const totalRules = data.rules.length;
+  const totalRules = data.typeRules.length;
 
   const flowSteps = [
     {

@@ -30,10 +30,14 @@ interface Identity {
   identity_name: string;
   identity_id: string;
   tenant: string;
+  subaccount?: string;
+  applications?: Array<{ id: string; name: string; application_type: string; description?: string }>;
   idp_type: string;
   idp_domain: string;
   status: string;
   rules: PolicyRule[];
+  identityRules?: PolicyRule[];
+  tenantRuleIds?: string[];
   instances: Instance[];
   mcpDependencies: MCPServer[];
 }
@@ -107,9 +111,10 @@ export function PermissionsGraphPage() {
     name: 'Procurement Agent',
     type: 'Procurement Orchestration',
     provider: 'SAP',
+    region: 'EMEA',
+    subaccount: 'Global',
     labels: ['version:2.3','system:concur', 'finance' ],
     identityRules: [
-      { id: '2', action: 'Allow', actionType: 'Discover Tool', targetType: 'Tools', conditions: [{ attribute: 'server.createdBy', operator: '=', value: 'sap/*' }] },
       { id: '5', action: 'Allow', actionType: 'Call agent', targetType: 'Agent', actingAs: 'User', conditions: [{ attribute: 'user.location', operator: '=', value: 'agent.region' }] },
       { id: '8', action: 'Allow', actionType: 'Call agent', targetType: 'Agent', conditions: [{ attribute: 'agent.createdBy', operator: '=', value: 'sap/ariba' }] },
       { id: '9', action: 'Ask For Consent', actionType: 'Invoke Tool', targetType: 'Tools', conditions: [{ attribute: 'tool.dataSensitivity', operator: '=', value: 'sensitive' }] },
@@ -120,10 +125,9 @@ export function PermissionsGraphPage() {
         identity_name: 'Procurement Agent EMEA',
         identity_id: 'A532408',
         tenant: 'EMEA',
+        subaccount: 'Global',
         idp_type: 'SAP IAS',
         idp_domain: 'ias.accounts.sap.com',
-        subaccount: 'Global',
-        region: 'EMEA',
         status: 'Active',
         rules: [
           { id: 'i1', action: 'Allow', actionType: 'Invoke Tool', targetType: 'Tools', conditions: [{ attribute: 'server.region', operator: '=', value: 'EU' }] },
