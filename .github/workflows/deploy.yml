@@ -60,32 +60,14 @@ jobs:
       - name: Deploy to GitHub Pages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CNAME_DOMAIN: control.ai.authz.id
         run: |
           # Dynamically determine the git host domain from github.server_url
           SERVER_URL="${{ github.server_url }}"
           DOMAIN="${SERVER_URL#*://}"
           
           git remote set-url origin "https://git:${GITHUB_TOKEN}@${DOMAIN}/${GITHUB_REPOSITORY}.git"
-          
-          ADD_FLAG=""
-          CNAME_FLAG=""
-          
-          if [[ "${{ steps.config.outputs.clean }}" == "false" ]]; then
-            ADD_FLAG="--add"
-          else
-            # Only set CNAME for the main/root deployment (clean=true)
-            if [[ -n "$CNAME_DOMAIN" ]]; then
-               CNAME_FLAG="--cname $CNAME_DOMAIN"
-               
-               # Update package.json homepage for consistency if running on main branch
-               echo "Updating package.json homepage to https://$CNAME_DOMAIN"
-               jq --indent 2 --arg homepage "https://$CNAME_DOMAIN" '.homepage = $homepage' package.json > package.json.tmp && mv package.json.tmp package.json
-            fi
-          fi
-          
+                    
+           
           npx gh-pages -d dist -u "github-actions-bot <support+actions@github.com>" \
             --branch gh-pages \
-            --dest "${{ steps.config.outputs.target_folder }}" \
-            $ADD_FLAG 
-            # $CNAME_FLAG
+            --dest "${{ steps.config.outputs.target_folder }}" 
