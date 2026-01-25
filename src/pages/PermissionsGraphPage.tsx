@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Bot, Users, ChevronDown, ChevronRight, Shield, ArrowRight, User, Network, Key, Server, FileText, Database } from 'lucide-react';
+import { agents, agentData } from './network/agentData';
+import AgentSelector from './network/AgentSelector';
 
 interface PolicyRule {
   id: string;
@@ -68,7 +70,7 @@ export function PermissionsGraphPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(['agent-rules', 'identity-rules'])
   );
-  
+
   // Interactive view toggles
   const [viewStates, setViewStates] = useState({
     agent: true,
@@ -364,7 +366,7 @@ export function PermissionsGraphPage() {
           <span className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${getActionColor(rule.action)}`}>
             {rule.action}
           </span>
-          
+
           {rule.actingAs && (
             <>
               <span className="text-sm text-gray-500">when acting as</span>
@@ -373,15 +375,15 @@ export function PermissionsGraphPage() {
               </span>
             </>
           )}
-          
+
           <span className="text-sm text-gray-500">to access</span>
-          
+
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border ${getTargetColor(rule.targetType)}`}>
             <TargetIcon className="w-3.5 h-3.5" />
             {rule.targetType}
             {rule.targetSpecifier && <span className="font-normal">{rule.targetSpecifier}</span>}
           </span>
-          
+
           {rule.conditions && rule.conditions.length > 0 && (
             <>
               <span className="text-sm text-gray-500">where</span>
@@ -408,241 +410,216 @@ export function PermissionsGraphPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-[1600px] mx-auto p-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-normal text-gray-900 mb-2">Agent Permissions & Dependencies</h1>
-          <p className="text-sm text-gray-600">
-            Comprehensive view of agent access policies and identity instances across multiple tenants
-          </p>
-        </div>
-
-        {/* Agent Summary Card */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
-          <div className="flex items-start gap-4">
-            <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Bot className="w-8 h-8 text-[#0854A0]" />
+      <div className="mb-6">
+        <h1 className="text-2xl font-normal text-gray-900 mb-2">Agent Permissions & Dependencies</h1>
+        <p className="text-sm text-gray-600">
+          Comprehensive view of agent access policies and identity instances across multiple tenants
+        </p>
+      </div>
+      {/* Agent Summary Card */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
+        <div className="flex items-start gap-4">
+          <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Bot className="w-8 h-8 text-[#0854A0]" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h2 className="text-xl font-semibold text-gray-900">{selectedAgent.name}</h2>
+              <span className="px-2.5 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                {selectedAgent.type}
+              </span>
+              <span className="px-2.5 py-1 bg-[#0854A0] text-white rounded text-xs font-medium">
+                {selectedAgent.provider}
+              </span>
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-xl font-semibold text-gray-900">{selectedAgent.name}</h2>
-                <span className="px-2.5 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                  {selectedAgent.type}
-                </span>
-                <span className="px-2.5 py-1 bg-[#0854A0] text-white rounded text-xs font-medium">
-                  {selectedAgent.provider}
-                </span>
-              </div>
-              <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-                <span>Region: <strong>{selectedAgent.region}</strong></span>
-                <span>Subaccount: <strong>{selectedAgent.subaccount}</strong></span>
-                <span>ID: <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{selectedAgent.id}</code></span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedAgent.labels.map((label, idx) => (
-                  <span
-                    key={idx}
-                    className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      label.includes(':')
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                        : 'bg-gray-100 text-gray-700'
+            <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+              <span>Region: <strong>{selectedAgent.region}</strong></span>
+              <span>Subaccount: <strong>{selectedAgent.subaccount}</strong></span>
+              <span>ID: <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{selectedAgent.id}</code></span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {selectedAgent.labels.map((label, idx) => (
+                <span
+                  key={idx}
+                  className={`px-2 py-0.5 rounded text-xs font-medium ${label.includes(':')
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-700'
                     }`}
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
+                >
+                  {label}
+                </span>
+              ))}
             </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-500 mb-1">Dependencies</div>
-              <div className="flex items-center gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-semibold text-purple-600">{selectedAgent.identities.length}</div>
-                  <div className="text-xs text-gray-500">Identities</div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm text-gray-500 mb-1">Dependencies</div>
+            <div className="flex items-center gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-semibold text-purple-600">{selectedAgent.identities.length}</div>
+                <div className="text-xs text-gray-500">Identities</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-semibold text-indigo-600">
+                  {selectedAgent.identities.reduce((acc, id) => acc + id.instances.length, 0)}
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-semibold text-indigo-600">
-                    {selectedAgent.identities.reduce((acc, id) => acc + id.instances.length, 0)}
-                  </div>
-                  <div className="text-xs text-gray-500">Instances</div>
+                <div className="text-xs text-gray-500">Instances</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-semibold text-orange-600">
+                  {selectedAgent.identities.reduce((acc, id) => acc + id.mcpDependencies.length, 0)}
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-semibold text-orange-600">
-                    {selectedAgent.identities.reduce((acc, id) => acc + id.mcpDependencies.length, 0)}
-                  </div>
-                  <div className="text-xs text-gray-500">MCP Servers</div>
+                <div className="text-xs text-gray-500">MCP Servers</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-semibold text-green-600">
+                  {selectedAgent.identities.reduce((acc, id) =>
+                    acc + id.mcpDependencies.reduce((sum, mcp) => sum + mcp.systems.length, 0), 0
+                  )}
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-semibold text-green-600">
-                    {selectedAgent.identities.reduce((acc, id) => 
-                      acc + id.mcpDependencies.reduce((sum, mcp) => sum + mcp.systems.length, 0), 0
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-500">Systems</div>
-                </div>
+                <div className="text-xs text-gray-500">Systems</div>
               </div>
             </div>
           </div>
         </div>
+      </div>
+      <div className="max-w-[1600px] mx-auto p-8">
+
+
+
 
         {/* Dependency Flow Visualization */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6 hidden">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Identity Flow</h3>
           <div className="flex items-center justify-center gap-4 py-6">
-            <button 
+            <button
               type="button"
               className="flex flex-col items-center cursor-pointer transition-all hover:scale-105 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
               onClick={() => toggleView('agent')}
               onMouseDown={(e) => e.currentTarget.blur()}
               aria-label="Toggle agent visibility"
             >
-              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${
-                viewStates.agent 
-                  ? 'bg-blue-100 border-blue-300' 
-                  : 'bg-gray-100 border-gray-300 grayscale opacity-50'
-              }`}>
-                <Bot className={`w-10 h-10 transition-all pointer-events-none ${
-                  viewStates.agent ? 'text-blue-600' : 'text-gray-400'
-                }`} />
+              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${viewStates.agent
+                ? 'bg-blue-100 border-blue-300'
+                : 'bg-gray-100 border-gray-300 grayscale opacity-50'
+                }`}>
+                <Bot className={`w-10 h-10 transition-all pointer-events-none ${viewStates.agent ? 'text-blue-600' : 'text-gray-400'
+                  }`} />
               </div>
-              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${
-                viewStates.agent ? 'text-gray-900' : 'text-gray-400'
-              }`}>Agent</span>
-              <span className={`text-xs transition-all pointer-events-none ${
-                viewStates.agent ? 'text-gray-500' : 'text-gray-400'
-              }`}>Type</span>
+              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${viewStates.agent ? 'text-gray-900' : 'text-gray-400'
+                }`}>Agent</span>
+              <span className={`text-xs transition-all pointer-events-none ${viewStates.agent ? 'text-gray-500' : 'text-gray-400'
+                }`}>Type</span>
             </button>
-            
+
             <div className="flex flex-col items-center px-4">
-              <ArrowRight className={`w-8 h-8 transition-all ${
-                viewStates.agent && viewStates.identity ? 'text-blue-400' : 'text-gray-300'
-              }`} />
-              <span className={`text-xs mt-1 transition-all ${
-                viewStates.agent && viewStates.identity ? 'text-gray-500' : 'text-gray-300'
-              }`}>{selectedAgent.identityRules.length} rules</span>
+              <ArrowRight className={`w-8 h-8 transition-all ${viewStates.agent && viewStates.identity ? 'text-blue-400' : 'text-gray-300'
+                }`} />
+              <span className={`text-xs mt-1 transition-all ${viewStates.agent && viewStates.identity ? 'text-gray-500' : 'text-gray-300'
+                }`}>{selectedAgent.identityRules.length} rules</span>
             </div>
-            
-            <button 
+
+            <button
               type="button"
               className="flex flex-col items-center cursor-pointer transition-all hover:scale-105 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 rounded"
               onClick={() => toggleView('identity')}
               onMouseDown={(e) => e.currentTarget.blur()}
               aria-label="Toggle identity visibility"
             >
-              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${
-                viewStates.identity 
-                  ? 'bg-purple-100 border-purple-300' 
-                  : 'bg-gray-100 border-gray-300 grayscale opacity-50'
-              }`}>
-                <User className={`w-10 h-10 transition-all pointer-events-none ${
-                  viewStates.identity ? 'text-purple-600' : 'text-gray-400'
-                }`} />
+              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${viewStates.identity
+                ? 'bg-purple-100 border-purple-300'
+                : 'bg-gray-100 border-gray-300 grayscale opacity-50'
+                }`}>
+                <User className={`w-10 h-10 transition-all pointer-events-none ${viewStates.identity ? 'text-purple-600' : 'text-gray-400'
+                  }`} />
               </div>
-              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${
-                viewStates.identity ? 'text-gray-900' : 'text-gray-400'
-              }`}>Identity</span>
-              <span className={`text-xs transition-all pointer-events-none ${
-                viewStates.identity ? 'text-gray-500' : 'text-gray-400'
-              }`}>Instances</span>
+              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${viewStates.identity ? 'text-gray-900' : 'text-gray-400'
+                }`}>Identity</span>
+              <span className={`text-xs transition-all pointer-events-none ${viewStates.identity ? 'text-gray-500' : 'text-gray-400'
+                }`}>Instances</span>
             </button>
-            
+
             <div className="flex flex-col items-center px-4">
-              <ArrowRight className={`w-8 h-8 transition-all ${
-                viewStates.identity && viewStates.instances ? 'text-purple-400' : 'text-gray-300'
-              }`} />
-              <span className={`text-xs mt-1 transition-all ${
-                viewStates.identity && viewStates.instances ? 'text-gray-500' : 'text-gray-300'
-              }`}>
+              <ArrowRight className={`w-8 h-8 transition-all ${viewStates.identity && viewStates.instances ? 'text-purple-400' : 'text-gray-300'
+                }`} />
+              <span className={`text-xs mt-1 transition-all ${viewStates.identity && viewStates.instances ? 'text-gray-500' : 'text-gray-300'
+                }`}>
                 {selectedAgent.identities.reduce((acc, id) => acc + id.rules.length, 0)} instances
               </span>
             </div>
-            
-            <button 
+
+            <button
               type="button"
               className="flex flex-col items-center cursor-pointer transition-all hover:scale-105 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded"
               onClick={() => toggleView('instances')}
               onMouseDown={(e) => e.currentTarget.blur()}
               aria-label="Toggle instances visibility"
             >
-              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${
-                viewStates.instances 
-                  ? 'bg-indigo-100 border-indigo-300' 
-                  : 'bg-gray-100 border-gray-300 grayscale opacity-50'
-              }`}>
-                <Users className={`w-10 h-10 transition-all pointer-events-none ${
-                  viewStates.instances ? 'text-indigo-600' : 'text-gray-400'
-                }`} />
+              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${viewStates.instances
+                ? 'bg-indigo-100 border-indigo-300'
+                : 'bg-gray-100 border-gray-300 grayscale opacity-50'
+                }`}>
+                <Users className={`w-10 h-10 transition-all pointer-events-none ${viewStates.instances ? 'text-indigo-600' : 'text-gray-400'
+                  }`} />
               </div>
-              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${
-                viewStates.instances ? 'text-gray-900' : 'text-gray-400'
-              }`}>Instances</span>
-              <span className={`text-xs transition-all pointer-events-none ${
-                viewStates.instances ? 'text-gray-500' : 'text-gray-400'
-              }`}>
+              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${viewStates.instances ? 'text-gray-900' : 'text-gray-400'
+                }`}>Instances</span>
+              <span className={`text-xs transition-all pointer-events-none ${viewStates.instances ? 'text-gray-500' : 'text-gray-400'
+                }`}>
                 {selectedAgent.identities.reduce((acc, id) => acc + id.instances.length, 0)} instances
               </span>
             </button>
-            
+
             <div className="flex flex-col items-center px-4">
-              <ArrowRight className={`w-8 h-8 transition-all ${
-                viewStates.instances && viewStates.servers ? 'text-indigo-400' : 'text-gray-300'
-              }`} />
+              <ArrowRight className={`w-8 h-8 transition-all ${viewStates.instances && viewStates.servers ? 'text-indigo-400' : 'text-gray-300'
+                }`} />
             </div>
-            
-            <button 
+
+            <button
               type="button"
               className="flex flex-col items-center cursor-pointer transition-all hover:scale-105 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 rounded"
               onClick={() => toggleView('servers')}
               onMouseDown={(e) => e.currentTarget.blur()}
               aria-label="Toggle MCP servers visibility"
             >
-              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${
-                viewStates.servers 
-                  ? 'bg-orange-100 border-orange-300' 
-                  : 'bg-gray-100 border-gray-300 grayscale opacity-50'
-              }`}>
-                <Server className={`w-10 h-10 transition-all pointer-events-none ${
-                  viewStates.servers ? 'text-orange-600' : 'text-gray-400'
-                }`} />
+              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${viewStates.servers
+                ? 'bg-orange-100 border-orange-300'
+                : 'bg-gray-100 border-gray-300 grayscale opacity-50'
+                }`}>
+                <Server className={`w-10 h-10 transition-all pointer-events-none ${viewStates.servers ? 'text-orange-600' : 'text-gray-400'
+                  }`} />
               </div>
-              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${
-                viewStates.servers ? 'text-gray-900' : 'text-gray-400'
-              }`}>MCP Servers</span>
-              <span className={`text-xs transition-all pointer-events-none ${
-                viewStates.servers ? 'text-gray-500' : 'text-gray-400'
-              }`}>
+              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${viewStates.servers ? 'text-gray-900' : 'text-gray-400'
+                }`}>MCP Servers</span>
+              <span className={`text-xs transition-all pointer-events-none ${viewStates.servers ? 'text-gray-500' : 'text-gray-400'
+                }`}>
                 {selectedAgent.identities.reduce((acc, id) => acc + id.mcpDependencies.length, 0)} servers
               </span>
             </button>
-            
+
             <div className="flex flex-col items-center px-4">
-              <ArrowRight className={`w-8 h-8 transition-all ${
-                viewStates.servers && viewStates.systems ? 'text-orange-400' : 'text-gray-300'
-              }`} />
+              <ArrowRight className={`w-8 h-8 transition-all ${viewStates.servers && viewStates.systems ? 'text-orange-400' : 'text-gray-300'
+                }`} />
             </div>
-            
-            <button 
+
+            <button
               type="button"
               className="flex flex-col items-center cursor-pointer transition-all hover:scale-105 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 rounded"
               onClick={() => toggleView('systems')}
               onMouseDown={(e) => e.currentTarget.blur()}
               aria-label="Toggle systems visibility"
             >
-              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${
-                viewStates.systems 
-                  ? 'bg-green-100 border-green-300' 
-                  : 'bg-gray-100 border-gray-300 grayscale opacity-50'
-              }`}>
-                <Database className={`w-10 h-10 transition-all pointer-events-none ${
-                  viewStates.systems ? 'text-green-600' : 'text-gray-400'
-                }`} />
+              <div className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 transition-all pointer-events-none ${viewStates.systems
+                ? 'bg-green-100 border-green-300'
+                : 'bg-gray-100 border-gray-300 grayscale opacity-50'
+                }`}>
+                <Database className={`w-10 h-10 transition-all pointer-events-none ${viewStates.systems ? 'text-green-600' : 'text-gray-400'
+                  }`} />
               </div>
-              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${
-                viewStates.systems ? 'text-gray-900' : 'text-gray-400'
-              }`}>Systems</span>
-              <span className={`text-xs transition-all pointer-events-none ${
-                viewStates.systems ? 'text-gray-500' : 'text-gray-400'
-              }`}>
-                {selectedAgent.identities.reduce((acc, id) => 
+              <span className={`mt-2 text-sm font-medium transition-all pointer-events-none ${viewStates.systems ? 'text-gray-900' : 'text-gray-400'
+                }`}>Systems</span>
+              <span className={`text-xs transition-all pointer-events-none ${viewStates.systems ? 'text-gray-500' : 'text-gray-400'
+                }`}>
+                {selectedAgent.identities.reduce((acc, id) =>
                   acc + id.mcpDependencies.reduce((sum, mcp) => sum + mcp.systems.length, 0), 0
                 )} systems
               </span>
@@ -652,240 +629,239 @@ export function PermissionsGraphPage() {
 
         {/* Agent Identity Rules */}
         {viewStates.agent && (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
-          <button
-            onClick={() => toggleSection('agent-rules')}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50"
-          >
-            <div className="flex items-center gap-3">
-              {expandedSections.has('agent-rules') ? (
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              ) : (
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-              )}
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-blue-600" />
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
+            <button
+              onClick={() => toggleSection('agent-rules')}
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50"
+            >
+              <div className="flex items-center gap-3">
+                {expandedSections.has('agent-rules') ? (
+                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                )}
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-base font-medium text-gray-900">Procurement Agent Rules</h3>
+                  <p className="text-sm text-gray-500">Rules governing access to this agent type</p>
+                </div>
               </div>
-              <div className="text-left">
-                <h3 className="text-base font-medium text-gray-900">Procurement Agent Rules</h3>
-                <p className="text-sm text-gray-500">Rules governing access to this agent identity</p>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                {selectedAgent.identityRules.length} rules
+              </span>
+            </button>
+
+            {expandedSections.has('agent-rules') && (
+              <div className="px-6 pb-6 border-t border-gray-100">
+                <div className="pt-4 space-y-3">
+                  {selectedAgent.identityRules.map(rule => renderRule(rule))}
+                </div>
               </div>
-            </div>
-            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-              {selectedAgent.identityRules.length} rules
-            </span>
-          </button>
-          
-          {expandedSections.has('agent-rules') && (
-            <div className="px-6 pb-6 border-t border-gray-100">
-              <div className="pt-4 space-y-3">
-                {selectedAgent.identityRules.map(rule => renderRule(rule))}
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         )}
 
         {/* Identities with Instances */}
         {viewStates.identity && (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
-          <button
-            onClick={() => toggleSection('identity-rules')}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50"
-          >
-            <div className="flex items-center gap-3">
-              {expandedSections.has('identity-rules') ? (
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              ) : (
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-              )}
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <User className="w-5 h-5 text-purple-600" />
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
+            <button
+              onClick={() => toggleSection('identity-rules')}
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50"
+            >
+              <div className="flex items-center gap-3">
+                {expandedSections.has('identity-rules') ? (
+                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 text-gray-400" />
+                )}
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <User className="w-5 h-5 text-purple-600" />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-base font-medium text-gray-900">Identities & Instances</h3>
+                  <p className="text-sm text-gray-500">Identity instances across different tenants and IDPs with their runtime instances</p>
+                </div>
               </div>
-              <div className="text-left">
-                <h3 className="text-base font-medium text-gray-900">Identities & Instances</h3>
-                <p className="text-sm text-gray-500">Identity instances across different tenants and IDPs with their runtime instances</p>
-              </div>
-            </div>
-            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-              {selectedAgent.identities.length} identities
-            </span>
-          </button>
-          
-          {expandedSections.has('identity-rules') && (
-            <div className="px-6 pb-6 border-t border-gray-100">
-              {selectedAgent.identities.map((identity, idx) => (
-                <div key={identity.id} className={`pt-4 ${idx > 0 ? 'border-t border-gray-100 mt-4' : ''}`}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <User className="w-5 h-5 text-purple-600" />
-                    <span className="font-medium text-gray-900">{identity.identity_name}</span>
-                    <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs font-mono">
-                      {identity.identity_id}
-                    </span>
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                      Tenant: {identity.tenant}
-                    </span>
-                    <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded">
-                      <Network className="w-3 h-3 text-blue-700" />
-                      <span className="text-xs text-blue-700">
-                        {identity.idp_type} ({identity.idp_domain})
+              <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                {selectedAgent.identities.length} identities
+              </span>
+            </button>
+
+            {expandedSections.has('identity-rules') && (
+              <div className="px-6 pb-6 border-t border-gray-100">
+                {selectedAgent.identities.map((identity, idx) => (
+                  <div key={identity.id} className={`pt-4 ${idx > 0 ? 'border-t border-gray-100 mt-4' : ''}`}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <User className="w-5 h-5 text-purple-600" />
+                      <span className="font-medium text-gray-900">{identity.identity_name}</span>
+                      <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs font-mono">
+                        {identity.identity_id}
+                      </span>
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                        Tenant: {identity.tenant}
+                      </span>
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded">
+                        <Network className="w-3 h-3 text-blue-700" />
+                        <span className="text-xs text-blue-700">
+                          {identity.idp_type} ({identity.idp_domain})
+                        </span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-xs ${identity.status === 'Active'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-700'
+                        }`}>
+                        {identity.status}
                       </span>
                     </div>
-                    <span className={`px-2 py-0.5 rounded text-xs ${
-                      identity.status === 'Active' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {identity.status}
-                    </span>
-                  </div>
-                  
-                  <div className="ml-8 space-y-4">
-                    {/* Identity Rules */}
-                    <div>
-                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                        Identity Access Rules
-                      </div>
-                      <div className="space-y-3">
-                        {identity.rules.map(rule => renderRule(rule))}
-                      </div>
-                    </div>
 
-                    {/* Instances */}
-                    {viewStates.instances && (
+                    <div className="ml-8 space-y-4">
+                      {/* Identity Rules */}
                       <div>
-                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                        Runtime Instances ({identity.instances.length})
-                      </div>
-                      <div className="space-y-3">
-                        {identity.instances.map((instance) => (
-                          <div key={instance.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                            <div className="grid grid-cols-2 gap-4 mb-3">
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Server className="w-4 h-4 text-gray-500" />
-                                  <span className="text-xs font-medium text-gray-500">Pod ID</span>
-                                </div>
-                                <span className="text-sm font-mono text-gray-900">{instance.pod_id}</span>
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <FileText className="w-4 h-4 text-gray-500" />
-                                  <span className="text-xs font-medium text-gray-500">Operating System</span>
-                                </div>
-                                <span className="text-sm text-gray-900">{instance.os}</span>
-                              </div>
-                              <div className="col-span-2">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Key className="w-4 h-4 text-gray-500" />
-                                  <span className="text-xs font-medium text-gray-500">Public Key</span>
-                                </div>
-                                <span className="text-xs font-mono text-gray-700 break-all">{instance.public_key}</span>
-                              </div>
-                            </div>
-                            <div className="border-t border-gray-200 pt-3 mt-3">
-                              <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                  <span className="text-xs text-gray-600">Blocked:</span>
-                                  <span className="text-sm font-semibold text-red-700">{instance.audit_logs.blocked}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                  <span className="text-xs text-gray-600">Approved:</span>
-                                  <span className="text-sm font-semibold text-green-700">{instance.audit_logs.approved}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    )}
-
-                    {/* MCP Server Dependencies for this Identity */}
-                    {viewStates.servers && identity.mcpDependencies && identity.mcpDependencies.length > 0 && (
-                      <div className="mt-4">
-                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-                          MCP Server Dependencies ({identity.mcpDependencies.length})
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                          Identity Access Rules
                         </div>
-                        <div className="space-y-4">
-                          {identity.mcpDependencies.map((mcp) => (
-                            <div
-                              key={mcp.id}
-                              className="bg-orange-50 rounded-lg p-4 border border-orange-200"
-                            >
-                              <div className="flex items-start gap-4 mb-3">
-                                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                  <Server className="w-5 h-5 text-orange-600" />
-                                </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <span className="font-medium text-gray-900">{mcp.name}</span>
-                                    <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">
-                                      {mcp.server_type}
-                                    </span>
-                                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                                      {mcp.provider}
-                                    </span>
+                        <div className="space-y-3">
+                          {identity.rules.map(rule => renderRule(rule))}
+                        </div>
+                      </div>
+
+                      {/* Instances */}
+                      {viewStates.instances && (
+                        <div>
+                          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                            Runtime Instances ({identity.instances.length})
+                          </div>
+                          <div className="space-y-3">
+                            {identity.instances.map((instance) => (
+                              <div key={instance.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <div className="grid grid-cols-2 gap-4 mb-3">
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Server className="w-4 h-4 text-gray-500" />
+                                      <span className="text-xs font-medium text-gray-500">Pod ID</span>
+                                    </div>
+                                    <span className="text-sm font-mono text-gray-900">{instance.pod_id}</span>
                                   </div>
-                                  {mcp.description && (
-                                    <p className="text-sm text-gray-600 mb-2">{mcp.description}</p>
-                                  )}
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-500">Endpoint:</span>
-                                    <span className="text-xs font-mono text-gray-700">{mcp.endpoint}</span>
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <FileText className="w-4 h-4 text-gray-500" />
+                                      <span className="text-xs font-medium text-gray-500">Operating System</span>
+                                    </div>
+                                    <span className="text-sm text-gray-900">{instance.os}</span>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Key className="w-4 h-4 text-gray-500" />
+                                      <span className="text-xs font-medium text-gray-500">Public Key</span>
+                                    </div>
+                                    <span className="text-xs font-mono text-gray-700 break-all">{instance.public_key}</span>
+                                  </div>
+                                </div>
+                                <div className="border-t border-gray-200 pt-3 mt-3">
+                                  <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                      <span className="text-xs text-gray-600">Blocked:</span>
+                                      <span className="text-sm font-semibold text-red-700">{instance.audit_logs.blocked}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                      <span className="text-xs text-gray-600">Approved:</span>
+                                      <span className="text-sm font-semibold text-green-700">{instance.audit_logs.approved}</span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
-                              {/* Systems called from this MCP Server */}
-                              {viewStates.systems && mcp.systems && mcp.systems.length > 0 && (
-                                <div className="ml-14 mt-3 pt-3 border-t border-orange-200">
-                                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                                    Systems ({mcp.systems.length})
+                      {/* MCP Server Dependencies for this Identity */}
+                      {viewStates.servers && identity.mcpDependencies && identity.mcpDependencies.length > 0 && (
+                        <div className="mt-4">
+                          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                            MCP Server Dependencies ({identity.mcpDependencies.length})
+                          </div>
+                          <div className="space-y-4">
+                            {identity.mcpDependencies.map((mcp) => (
+                              <div
+                                key={mcp.id}
+                                className="bg-orange-50 rounded-lg p-4 border border-orange-200"
+                              >
+                                <div className="flex items-start gap-4 mb-3">
+                                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <Server className="w-5 h-5 text-orange-600" />
                                   </div>
-                                  <div className="space-y-2">
-                                    {mcp.systems.map((system) => (
-                                      <div
-                                        key={system.id}
-                                        className="bg-white rounded-lg p-3 border border-gray-200"
-                                      >
-                                        <div className="flex items-start gap-3">
-                                          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                            <Database className="w-4 h-4 text-green-600" />
-                                          </div>
-                                          <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                              <span className="text-sm font-medium text-gray-900">{system.name}</span>
-                                              <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs">
-                                                {system.system_type}
-                                              </span>
-                                              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                                                {system.provider}
-                                              </span>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <span className="font-medium text-gray-900">{mcp.name}</span>
+                                      <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">
+                                        {mcp.server_type}
+                                      </span>
+                                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                                        {mcp.provider}
+                                      </span>
+                                    </div>
+                                    {mcp.description && (
+                                      <p className="text-sm text-gray-600 mb-2">{mcp.description}</p>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-gray-500">Endpoint:</span>
+                                      <span className="text-xs font-mono text-gray-700">{mcp.endpoint}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Systems called from this MCP Server */}
+                                {viewStates.systems && mcp.systems && mcp.systems.length > 0 && (
+                                  <div className="ml-14 mt-3 pt-3 border-t border-orange-200">
+                                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                                      Systems ({mcp.systems.length})
+                                    </div>
+                                    <div className="space-y-2">
+                                      {mcp.systems.map((system) => (
+                                        <div
+                                          key={system.id}
+                                          className="bg-white rounded-lg p-3 border border-gray-200"
+                                        >
+                                          <div className="flex items-start gap-3">
+                                            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                              <Database className="w-4 h-4 text-green-600" />
                                             </div>
-                                            {system.description && (
-                                              <p className="text-xs text-gray-600">{system.description}</p>
-                                            )}
+                                            <div className="flex-1">
+                                              <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-sm font-medium text-gray-900">{system.name}</span>
+                                                <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs">
+                                                  {system.system_type}
+                                                </span>
+                                                <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                                                  {system.provider}
+                                                </span>
+                                              </div>
+                                              {system.description && (
+                                                <p className="text-xs text-gray-600">{system.description}</p>
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    ))}
+                                      ))}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Summary Statistics */}
@@ -898,13 +874,13 @@ export function PermissionsGraphPage() {
               <div>
                 <div className="text-2xl font-semibold text-gray-900">
                   {selectedAgent.identityRules.filter((r: PolicyRule) => r.action === 'Allow').length +
-                   selectedAgent.identities.reduce((acc: number, id: Identity) => acc + id.rules.filter((r: PolicyRule) => r.action === 'Allow').length, 0)}
+                    selectedAgent.identities.reduce((acc: number, id: Identity) => acc + id.rules.filter((r: PolicyRule) => r.action === 'Allow').length, 0)}
                 </div>
                 <div className="text-xs text-gray-500">Allow Rules</div>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
@@ -918,7 +894,7 @@ export function PermissionsGraphPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -932,7 +908,7 @@ export function PermissionsGraphPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
@@ -946,7 +922,7 @@ export function PermissionsGraphPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -960,7 +936,7 @@ export function PermissionsGraphPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -968,7 +944,7 @@ export function PermissionsGraphPage() {
               </div>
               <div>
                 <div className="text-2xl font-semibold text-gray-900">
-                  {selectedAgent.identities.reduce((acc: number, id: Identity) => 
+                  {selectedAgent.identities.reduce((acc: number, id: Identity) =>
                     acc + id.mcpDependencies.reduce((sum: number, mcp: MCPServer) => sum + mcp.systems.length, 0), 0
                   )}
                 </div>
@@ -979,5 +955,28 @@ export function PermissionsGraphPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+
+export default function PermissionsGraphPageWrapper() {
+  return (
+    <main className="max-w-screen mx-auto px-6 py-8">
+      <div className="flex gap-6 h-[calc(100vh-4rem)]">
+        {/* Agent Selector Sidebar */}
+        <div className="w-80 flex-shrink-0">
+          <AgentSelector
+            selectedAgentId={agentData.id}
+            onSelectAgent={() => { }}
+            agents={agents}
+          />
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-y-auto space-y-8">
+          <PermissionsGraphPage />
+        </div>
+      </div>
+    </main>
   );
 }

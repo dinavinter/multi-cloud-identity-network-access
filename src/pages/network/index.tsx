@@ -24,20 +24,9 @@ export default function Network() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto space-y-8">
-          {selectedAgent ? (
-            <>
+        <div className="flex-1 overflow-y-auto space-y-8"> 
               <IdentityFlow data={agentData} />
-              <NetworkGraph data={agentData} />
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-full bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="text-center">
-                <p className="text-gray-500 text-lg mb-2">No agent selected</p>
-                <p className="text-gray-400 text-sm">Select an agent from the sidebar to view its network</p>
-              </div>
-            </div>
-          )}
+              <NetworkGraph data={agentData} />  
         </div>
       </div>
     </main>

@@ -50,7 +50,16 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
         >
           Agent Network
         </button>
-
+        <button
+          onClick={() => onNavigate('permissions-graph')}
+          className={`pb-3 text-sm font-medium ${
+            currentPage === 'permissions-graph'
+              ? 'text-[#0854A0] border-b-2 border-[#0854A0]'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Agent Policies
+        </button>
         <button
           onClick={() => onNavigate('agents')}
           className={`pb-3 text-sm font-medium ${
@@ -71,16 +80,7 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
         >
           Meta Policies
         </button>
-        <button
-          onClick={() => onNavigate('permissions-graph')}
-          className={`pb-3 text-sm font-medium ${
-            currentPage === 'permissions-graph'
-              ? 'text-[#0854A0] border-b-2 border-[#0854A0]'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Permissions Graph
-        </button>
+    
       </div>
     </div>
   );
