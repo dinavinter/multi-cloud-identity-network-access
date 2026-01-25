@@ -6,10 +6,12 @@ import AgentSelector from './network/AgentSelector';
 interface PolicyRule {
   id: string;
   action: 'Allow' | 'Deny' | 'Ask For Consent';
-  targetType: 'Identity' | 'Agent' | 'Instance';
+  actionType: 'Invoke Tool' | 'Discover Tool' | 'Call agent' | 'agent:create task' | 'agent: read tasks' | 'agent: all';
+  targetType: 'Tools' | 'Agent' | 'MCP Server' | 'Identity' | 'Instance';
   targetSpecifier?: string;
   conditions?: { attribute: string; operator: string; value: string }[];
   actingAs?: string;
+  agentConstraint?: string; // For "Call agent" with specific agent or constraints
 }
 
 interface Instance {
@@ -105,13 +107,12 @@ export function PermissionsGraphPage() {
     name: 'Procurement Agent',
     type: 'Procurement Orchestration',
     provider: 'SAP',
-    region: 'EMEA',
-    subaccount: 'Global',
-    labels: ['env:production', 'team:procurement', 'hr'],
+    labels: ['version:2.3','system:concur', 'finance' ],
     identityRules: [
-      { id: '1', action: 'Allow', targetType: 'Agent', conditions: [{ attribute: 'agent.region', operator: '=', value: 'EMEA' }] },
-      { id: '2', action: 'Allow', targetType: 'Agent', conditions: [{ attribute: 'agent.subaccount', operator: '=', value: 'Global' }] },
-      { id: '3', action: 'Allow', targetType: 'Agent', actingAs: 'User', conditions: [{ attribute: 'user.location', operator: '=', value: 'agent.region' }] },
+      { id: '2', action: 'Allow', actionType: 'Discover Tool', targetType: 'Tools', conditions: [{ attribute: 'server.createdBy', operator: '=', value: 'sap/*' }] },
+      { id: '5', action: 'Allow', actionType: 'Call agent', targetType: 'Agent', actingAs: 'User', conditions: [{ attribute: 'user.location', operator: '=', value: 'agent.region' }] },
+      { id: '8', action: 'Allow', actionType: 'Call agent', targetType: 'Agent', conditions: [{ attribute: 'agent.createdBy', operator: '=', value: 'sap/ariba' }] },
+      { id: '9', action: 'Ask For Consent', actionType: 'Invoke Tool', targetType: 'Tools', conditions: [{ attribute: 'tool.dataSensitivity', operator: '=', value: 'sensitive' }] },
     ],
     identities: [
       {
@@ -121,10 +122,13 @@ export function PermissionsGraphPage() {
         tenant: 'EMEA',
         idp_type: 'SAP IAS',
         idp_domain: 'ias.accounts.sap.com',
+        subaccount: 'Global',
+        region: 'EMEA',
         status: 'Active',
         rules: [
-          { id: 'i1', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '=', value: 'EMEA' }] },
-          { id: 'i2', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.idp_type', operator: '=', value: 'SAP IAS' }] },
+          { id: 'i1', action: 'Allow', actionType: 'Invoke Tool', targetType: 'Tools', conditions: [{ attribute: 'server.region', operator: '=', value: 'EU' }] },
+          { id: 'i2', action: 'Allow', actionType: 'Discover Tool', targetType: 'Tools', conditions: [{ attribute: 'server.subaccount', operator: '=', value: 'Production' }] },
+          { id: 'i3', action: 'Allow', actionType: 'Call agent', targetType: 'Agent', conditions: [{ attribute: 'agent.region', operator: '=', value: 'EMEA' }] },
         ],
         instances: [
           {
@@ -201,8 +205,9 @@ export function PermissionsGraphPage() {
         idp_domain: 'login.microsoftonline.com',
         status: 'Active',
         rules: [
-          { id: 'i3', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '=', value: 'US' }] },
-          { id: 'i4', action: 'Ask For Consent', targetType: 'Identity', conditions: [{ attribute: 'identity.idp_type', operator: '=', value: 'Azure AD' }] },
+          { id: 'i4', action: 'Allow', actionType: 'Invoke Tool', targetType: 'Tools', targetSpecifier: 'id: xyz' },
+          { id: 'i5', action: 'Allow', actionType: 'Invoke Tool', targetType: 'Tools', targetSpecifier: 'server: mcp-commerce-products' },
+          { id: 'i6', action: 'Ask For Consent', actionType: 'Invoke Tool', targetType: 'Tools', conditions: [{ attribute: 'data-sensitivity', operator: '=', value: 'sensitive' }] },
         ],
         instances: [
           {
@@ -269,7 +274,9 @@ export function PermissionsGraphPage() {
         idp_domain: 'okta.com',
         status: 'Active',
         rules: [
-          { id: 'i5', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '=', value: 'APAC' }] },
+          { id: 'i7', action: 'Allow', actionType: 'agent: all', targetType: 'Agent' },
+          { id: 'i8', action: 'Allow', actionType: 'Invoke Tool', targetType: 'MCP Server', conditions: [{ attribute: 'tag:hr', operator: 'exists', value: '' }, { attribute: 'region', operator: '=', value: 'EMEA' }] },
+          { id: 'i9', action: 'Allow', actionType: 'Invoke Tool', targetType: 'MCP Server', actingAs: 'Agent', conditions: [{ attribute: 'agent.subaccount', operator: '=', value: 'mcp.subaccount' }] },
         ],
         instances: [
           {
@@ -342,19 +349,35 @@ export function PermissionsGraphPage() {
 
   const getTargetIcon = (type: string) => {
     switch (type) {
+      case 'Tools': return Key;
+      case 'Agent': return Bot;
+      case 'MCP Server': return Server;
       case 'Identity': return User;
       case 'Instance': return Users;
-      case 'Agent': return Bot;
       default: return Shield;
     }
   };
 
   const getTargetColor = (type: string) => {
     switch (type) {
+      case 'Tools': return 'bg-cyan-50 text-cyan-700 border-cyan-200';
+      case 'Agent': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'MCP Server': return 'bg-orange-50 text-orange-700 border-orange-200';
       case 'Identity': return 'bg-purple-50 text-purple-700 border-purple-200';
       case 'Instance': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-      case 'Agent': return 'bg-blue-50 text-blue-700 border-blue-200';
       default: return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
+
+  const getActionTypeColor = (actionType: string) => {
+    switch (actionType) {
+      case 'Invoke Tool': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Discover Tool': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'Call agent': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'agent:create task': return 'bg-green-100 text-green-800 border-green-200';
+      case 'agent: read tasks': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'agent: all': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -376,13 +399,21 @@ export function PermissionsGraphPage() {
             </>
           )}
 
-          <span className="text-sm text-gray-500">to access</span>
+          <span className="text-sm text-gray-500">to</span>
 
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border ${getTargetColor(rule.targetType)}`}>
-            <TargetIcon className="w-3.5 h-3.5" />
-            {rule.targetType}
-            {rule.targetSpecifier && <span className="font-normal">{rule.targetSpecifier}</span>}
-          </span>
+          {rule.actionType && (
+            <span className={`px-2.5 py-1 rounded text-xs font-medium border ${getActionTypeColor(rule.actionType)}`}>
+              {rule.actionType}
+            </span>
+          )}
+
+          {rule.targetSpecifier && (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border ${getTargetColor(rule.targetType)}`}>
+              <TargetIcon className="w-3.5 h-3.5" />
+              {rule.targetType}
+              <span className="font-normal ml-1">{rule.targetSpecifier}</span>
+            </span>
+          )}
 
           {rule.conditions && rule.conditions.length > 0 && (
             <>
@@ -392,12 +423,23 @@ export function PermissionsGraphPage() {
                   <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs font-mono">
                     {cond.attribute}
                   </span>
-                  <span className="text-xs text-gray-600">{cond.operator}</span>
-                  <span className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono">
-                    {cond.value}
-                  </span>
+                  {cond.operator !== 'exists' && (
+                    <>
+                      <span className="text-xs text-gray-600">{cond.operator}</span>
+                      {cond.value && (
+                        <span className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono">
+                          {cond.value}
+                        </span>
+                      )}
+                    </>
+                  )}
+                  {cond.operator === 'exists' && (
+                    <span className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono">
+                      exists
+                    </span>
+                  )}
                   {idx < rule.conditions!.length - 1 && (
-                    <span className="px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded text-xs font-medium">AND</span>
+                    <span className="px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded text-xs font-medium">and</span>
                   )}
                 </span>
               ))}
@@ -433,8 +475,8 @@ export function PermissionsGraphPage() {
               </span>
             </div>
             <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-              <span>Region: <strong>{selectedAgent.region}</strong></span>
-              <span>Subaccount: <strong>{selectedAgent.subaccount}</strong></span>
+              {/* <span>Region: <strong>{selectedAgent.region}</strong></span>
+              <span>Subaccount: <strong>{selectedAgent.subaccount}</strong></span> */}
               <span>ID: <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{selectedAgent.id}</code></span>
             </div>
             <div className="flex flex-wrap gap-1.5">
