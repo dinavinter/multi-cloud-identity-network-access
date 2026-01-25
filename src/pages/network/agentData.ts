@@ -317,3 +317,39 @@ export interface AgentConfig {
     ]
   };
   
+  export const agents: AgentConfig[] = [
+    agentData, // Full procurement agent data
+    {
+      id: 'finance-agent-001',
+      name: 'Finance Agent',
+      type: 'Finance Orchestration',
+      provider: 'SAP',
+      region: 'US',
+      subaccount: 'Global',
+      labels: ['env:production', 'team:finance'],
+      rules: [],
+      identities: []
+    },
+    {
+      id: 'hr-agent-001',
+      name: 'HR Agent',
+      type: 'HR Orchestration',
+      provider: 'SAP',
+      region: 'APAC',
+      subaccount: 'Global',
+      labels: ['env:production', 'team:hr'],
+      rules: [],
+      identities: []
+    },
+    {
+      id: 'sales-agent-001',
+      name: 'Sales Agent',
+      type: 'Sales Orchestration',
+      provider: 'SAP',
+      region: 'US',
+      subaccount: 'Global',
+      labels: ['env:production', 'team:sales'],
+      rules: [],
+      identities: []
+    }
+  ];

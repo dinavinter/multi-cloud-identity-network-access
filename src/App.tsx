@@ -9,7 +9,7 @@ import AgentAccessNetworkPage from './pages/network';
 type Page = 'home' | 'agents' | 'agent-detail' | 'meta-policies' | 'permissions-graph' | 'agent-access-network';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('agents');
+  const [currentPage, setCurrentPage] = useState<Page>('agent-access-network');
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   const handleNavigate = (page: string) => {
