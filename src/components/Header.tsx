@@ -41,6 +41,17 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
           Home
         </button>
         <button
+          onClick={() => onNavigate('agent-access-network')}
+          className={`pb-3 text-sm font-medium ${
+            currentPage === 'agent-access-network'
+              ? 'text-[#0854A0] border-b-2 border-[#0854A0]'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Agent Access Network
+        </button>
+
+        <button
           onClick={() => onNavigate('agents')}
           className={`pb-3 text-sm font-medium ${
             currentPage === 'agents' || currentPage === 'agent-detail'
@@ -69,16 +80,6 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
           }`}
         >
           Permissions Graph
-        </button>
-        <button
-          onClick={() => onNavigate('agent-access-network')}
-          className={`pb-3 text-sm font-medium ${
-            currentPage === 'agent-access-network'
-              ? 'text-[#0854A0] border-b-2 border-[#0854A0]'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Agent Access Network
         </button>
       </div>
     </div>

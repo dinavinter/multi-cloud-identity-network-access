@@ -4,7 +4,7 @@ import { AgentListPage } from './pages/AgentListPage';
 import { AgentDetailPage } from './pages/AgentDetailPage';
 import { MetaPoliciesPage } from './pages/MetaPoliciesPage';
 import { PermissionsGraphPage } from './pages/PermissionsGraphPage';
-import { AgentAccessNetworkPage } from './pages/AgentAccessNetworkPage';
+import AgentAccessNetworkPage from './pages/network';
 
 type Page = 'home' | 'agents' | 'agent-detail' | 'meta-policies' | 'permissions-graph' | 'agent-access-network';
 
