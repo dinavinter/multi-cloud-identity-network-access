@@ -113,7 +113,7 @@ export function PermissionsGraphPage() {
     provider: 'SAP',
     region: 'EMEA',
     subaccount: 'Global',
-    labels: ['version:2.3','system:concur', 'finance' ],
+    labels: ['version:2.3', 'system:concur', 'finance'],
     identityRules: [
       { id: '5', action: 'Allow', actionType: 'Call agent', targetType: 'Agent', actingAs: 'User', conditions: [{ attribute: 'user.location', operator: '=', value: 'agent.region' }] },
       { id: '8', action: 'Allow', actionType: 'Call agent', targetType: 'Agent', conditions: [{ attribute: 'agent.createdBy', operator: '=', value: 'sap/ariba' }] },

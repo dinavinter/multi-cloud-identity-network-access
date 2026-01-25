@@ -1,5 +1,5 @@
-import { Bot, ShieldCheck, Container, Boxes, HardDrive, ArrowRight } from 'lucide-react';
-import { AgentType } from './agentData';
+import { Bot, ShieldCheck, Container, Boxes, HardDrive, ArrowRight, User, Users, Server, Database } from 'lucide-react';
+import { AgentType, Identity } from './agentData';
 
 interface IdentityFlowProps {
   data: AgentType;
@@ -18,74 +18,72 @@ export default function IdentityFlow({ data }: IdentityFlowProps) {
       icon: Bot,
       label: 'Agent',
       sublabel: data.type,
-      detail: `${data.region} · ${data.provider}`,
-      color: 'bg-blue-100 text-blue-600',
+      detail: `${data.system} · ${data.provider}`,
+      color: ' transition-all pointer-events-none text-blue-600',
       borderColor: 'border-blue-300',
       count: `${totalRules} rules`,
-      badge: data.region
+      edge: `Installed`
     },
     {
       icon: ShieldCheck,
       label: 'Identities',
       sublabel: 'Multi-Cloud Auth',
       detail: `${data.identities.length} identities`,
-      color: 'bg-purple-100 text-purple-600',
+      color: ' text-purple-600',
       borderColor: 'border-purple-300',
       count: `${data.identities.length} identities`,
-      badge: 'Active'
+      edge: `Scales`
     },
     {
       icon: Container,
       label: 'Instances',
       sublabel: 'Runtime Pods',
       detail: `${totalInstances} active pods`,
-      color: 'bg-cyan-100 text-cyan-600',
+      color: ' text-cyan-600',
       borderColor: 'border-cyan-300',
       count: `${totalInstances} pods`,
-      badge: 'Running'
+      edge: `Invoke`
     },
     {
       icon: Boxes,
       label: 'MCP Servers',
       sublabel: 'Integration Layer',
       detail: `${totalMcpServers} endpoints`,
-      color: 'bg-orange-100 text-orange-600',
+      color: ' text-orange-600',
       borderColor: 'border-orange-300',
       count: `${totalMcpServers} servers`,
-      badge: 'Connected'
+      edge: `Uses`
     },
     {
       icon: HardDrive,
       label: 'Systems',
       sublabel: 'Backend Services',
       detail: `${totalSystems} systems`,
-      color: 'bg-emerald-100 text-emerald-600',
+      color: ' text-emerald-600',
       borderColor: 'border-emerald-300',
       count: `${totalSystems} systems`,
-      badge: 'Live'
     }
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
       <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900">Identity Flow</h2>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Identity Flow</h3>
         <p className="text-sm text-gray-600 mt-1">
           End-to-end access path from {data.name} through identities to backend systems
         </p>
       </div>
-
-      <div className="flex items-center justify-center gap-3">
+      <div className="flex items-center justify-center gap-4 py-6">
         {flowSteps.map((step, index) => (
-          <div key={index} className="flex items-center gap-3">
+          <div key={index} className="flex items-center gap-4">
             <div className="flex flex-col items-center group relative">
               <div className={`${step.color} ${step.borderColor} border-2 rounded-2xl p-6 mb-3 transition-all hover:shadow-lg hover:scale-105 relative`}>
                 <step.icon className="w-8 h-8" strokeWidth={2} />
-                <div className={`absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-semibold ${step.color} border ${step.borderColor}`}>
+                {/* {step.badge && <div className={`absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-semibold ${step.color} border ${step.borderColor}`}>
                   {step.badge}
-                </div>
+                </div>} */}
               </div>
-              <div className="text-xs font-semibold text-gray-900 mb-1">{step.count}</div>
               <div className="text-sm font-semibold text-gray-900">{step.label}</div>
               <div className="text-xs text-gray-600">{step.sublabel}</div>
               <div className="text-xs text-gray-500 mt-1">{step.detail}</div>
@@ -97,13 +95,23 @@ export default function IdentityFlow({ data }: IdentityFlowProps) {
             </div>
 
             {index < flowSteps.length - 1 && (
-              <div className="flex flex-col items-center mt-[-40px]">
-                <ArrowRight className="w-6 h-6 text-orange-500" strokeWidth={2.5} />
+
+              <div className="flex flex-col items-center px-4">
+                <ArrowRight className={`w-8 h-8 transition-all text-gray-400' 
+                }`} />
+                {/* <span className={`text-xs mt-1 transition-all text-gray-500' 
+                }`}>{flowSteps[index]?.edge}</span> */}
               </div>
+
             )}
           </div>
         ))}
       </div>
+
     </div>
   );
 }
+function distinct<T>(identities: T[], arg1: (identity: T) => unknown): Set<unknown> {
+  return new Set(identities.map(arg1));
+}
+
