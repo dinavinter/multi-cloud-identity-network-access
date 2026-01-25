@@ -1,38 +1,36 @@
 import { useState } from 'react';
-import { Bot, Server, Database, Wrench, ChevronDown, ChevronRight, Shield, ArrowRight, Users } from 'lucide-react';
+import { Bot, Users, ChevronDown, ChevronRight, Shield, ArrowRight, User, Network, Key, Server, FileText } from 'lucide-react';
 
 interface PolicyRule {
   id: string;
   action: 'Allow' | 'Deny' | 'Ask For Consent';
-  targetType: 'Tools' | 'Agent' | 'MCP Server' | 'System';
+  targetType: 'Identity' | 'Agent' | 'Instance';
   targetSpecifier?: string;
   conditions?: { attribute: string; operator: string; value: string }[];
   actingAs?: string;
 }
 
-interface MCPServer {
+interface Instance {
   id: string;
-  name: string;
-  provider: string;
-  region: string;
-  tools: Tool[];
-  rules: PolicyRule[];
+  pod_id: string;
+  os: string;
+  public_key: string;
+  audit_logs: {
+    blocked: number;
+    approved: number;
+  };
 }
 
-interface Tool {
+interface Identity {
   id: string;
-  name: string;
-  server: string;
-  dataSensitivity?: string;
-  dataType?: string;
-}
-
-interface SystemBackend {
-  id: string;
-  name: string;
-  type: string;
-  provider: string;
+  identity_name: string;
+  identity_id: string;
+  tenant: string;
+  idp_type: string;
+  idp_domain: string;
+  status: string;
   rules: PolicyRule[];
+  instances: Instance[];
 }
 
 interface AgentConfig {
@@ -43,14 +41,13 @@ interface AgentConfig {
   region: string;
   subaccount: string;
   labels: string[];
-  mcpDependencies: MCPServer[];
-  systemDependencies: SystemBackend[];
+  identities: Identity[];
   identityRules: PolicyRule[];
 }
 
 export function PermissionsGraphPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(['agent-rules', 'mcp-rules', 'system-rules'])
+    new Set(['agent-rules', 'identity-rules'])
   );
 
   const toggleSection = (section: string) => {
@@ -79,68 +76,103 @@ export function PermissionsGraphPage() {
       { id: '2', action: 'Allow', targetType: 'Agent', conditions: [{ attribute: 'agent.subaccount', operator: '=', value: 'Global' }] },
       { id: '3', action: 'Allow', targetType: 'Agent', actingAs: 'User', conditions: [{ attribute: 'user.location', operator: '=', value: 'agent.region' }] },
     ],
-    mcpDependencies: [
+    identities: [
       {
-        id: 'mcp-commerce',
-        name: 'mcp-commerce-products',
-        provider: 'SAP',
-        region: 'EU',
-        tools: [
-          { id: 't1', name: 'create-purchase-order', server: 'mcp-commerce-products' },
-          { id: 't2', name: 'get-supplier-info', server: 'mcp-commerce-products', dataSensitivity: 'sensitive' },
-          { id: 't3', name: 'approve-invoice', server: 'mcp-commerce-products', dataType: 'pii' },
-        ],
+        id: 'identity-001',
+        identity_name: 'Procurement Agent EMEA',
+        identity_id: 'A532408',
+        tenant: 'EMEA',
+        idp_type: 'SAP IAS',
+        idp_domain: 'ias.accounts.sap.com',
+        status: 'Active',
         rules: [
-          { id: 'm1', action: 'Allow', targetType: 'MCP Server', conditions: [{ attribute: 'tag:hr', operator: 'exists', value: 'exists' }, { attribute: 'region', operator: '=', value: 'EMEA' }] },
-          { id: 'm2', action: 'Allow', targetType: 'MCP Server', actingAs: 'Agent', conditions: [{ attribute: 'agent.subaccount', operator: '=', value: 'mcp.subaccount' }] },
+          { id: 'i1', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '=', value: 'EMEA' }] },
+          { id: 'i2', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.idp_type', operator: '=', value: 'SAP IAS' }] },
+        ],
+        instances: [
+          {
+            id: 'instance-001',
+            pod_id: 'pod-procurement-emea-001',
+            os: 'Linux 5.15.0',
+            public_key: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC...',
+            audit_logs: {
+              blocked: 5,
+              approved: 10
+            }
+          },
+          {
+            id: 'instance-002',
+            pod_id: 'pod-procurement-emea-002',
+            os: 'Linux 5.15.0',
+            public_key: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQD...',
+            audit_logs: {
+              blocked: 2,
+              approved: 15
+            }
+          }
         ]
       },
       {
-        id: 'mcp-ariba',
-        name: 'sap-ariba-procurement',
-        provider: 'SAP',
-        region: 'EU',
-        tools: [
-          { id: 't4', name: 'submit-rfq', server: 'sap-ariba-procurement' },
-          { id: 't5', name: 'vendor-management', server: 'sap-ariba-procurement', dataSensitivity: 'sensitive' },
+        id: 'identity-002',
+        identity_name: 'Procurement Agent US',
+        identity_id: 'A532409',
+        tenant: 'US',
+        idp_type: 'Azure AD',
+        idp_domain: 'login.microsoftonline.com',
+        status: 'Active',
+        rules: [
+          { id: 'i3', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '=', value: 'US' }] },
+          { id: 'i4', action: 'Ask For Consent', targetType: 'Identity', conditions: [{ attribute: 'identity.idp_type', operator: '=', value: 'Azure AD' }] },
         ],
-        rules: [
-          { id: 'm3', action: 'Allow', targetType: 'Tools', targetSpecifier: 'created by sap/ariba' },
-          { id: 'm4', action: 'Ask For Consent', targetType: 'Tools', conditions: [{ attribute: 'server.subaccount', operator: '=', value: 'Production' }] },
-        ]
-      }
-    ],
-    systemDependencies: [
-      {
-        id: 'sys-s4',
-        name: 'SAP S/4HANA',
-        type: 'ERP',
-        provider: 'SAP',
-        rules: [
-          { id: 's1', action: 'Allow', targetType: 'Tools', conditions: [{ attribute: 'server.region', operator: '=', value: 'EU' }] },
-          { id: 's2', action: 'Allow', targetType: 'Tools', targetSpecifier: 'server: mcp-commerce-products' },
+        instances: [
+          {
+            id: 'instance-003',
+            pod_id: 'pod-procurement-us-001',
+            os: 'Windows Server 2022',
+            public_key: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQE...',
+            audit_logs: {
+              blocked: 8,
+              approved: 12
+            }
+          }
         ]
       },
       {
-        id: 'sys-ariba',
-        name: 'SAP Ariba',
-        type: 'Procurement',
-        provider: 'SAP',
+        id: 'identity-003',
+        identity_name: 'Procurement Agent APAC',
+        identity_id: 'A532410',
+        tenant: 'APAC',
+        idp_type: 'Okta',
+        idp_domain: 'okta.com',
+        status: 'Active',
         rules: [
-          { id: 's3', action: 'Allow', targetType: 'Tools', targetSpecifier: 'id: xyz' },
-          { id: 's4', action: 'Allow', targetType: 'Tools', targetSpecifier: 'ids: [2]' },
-          { id: 's5', action: 'Allow', targetType: 'Tools', targetSpecifier: 'servers: [2]' },
+          { id: 'i5', action: 'Allow', targetType: 'Identity', conditions: [{ attribute: 'identity.tenant', operator: '=', value: 'APAC' }] },
+        ],
+        instances: [
+          {
+            id: 'instance-004',
+            pod_id: 'pod-procurement-apac-001',
+            os: 'Linux 6.1.0',
+            public_key: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQF...',
+            audit_logs: {
+              blocked: 3,
+              approved: 20
+            }
+          },
+          {
+            id: 'instance-005',
+            pod_id: 'pod-procurement-apac-002',
+            os: 'Linux 6.1.0',
+            public_key: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQG...',
+            audit_logs: {
+              blocked: 1,
+              approved: 18
+            }
+          }
         ]
       }
     ]
   };
-
-  // Tool-level rules
-  const toolRules: PolicyRule[] = [
-    { id: 'tr1', action: 'Ask For Consent', targetType: 'Tools', targetSpecifier: 'created by sap/ariba', conditions: [{ attribute: 'data-sensitivity', operator: '=', value: 'sensitive' }] },
-    { id: 'tr2', action: 'Ask For Consent', targetType: 'Tools', targetSpecifier: 'created by sap/ariba', conditions: [{ attribute: 'data-type', operator: '=', value: 'pii' }] },
-    { id: 'tr3', action: 'Deny', targetType: 'Tools', conditions: [{ attribute: 'data-classification', operator: '=', value: 'restricted' }] },
-  ];
 
   const getActionColor = (action: string) => {
     if (action === 'Allow') return 'bg-green-100 text-green-800 border-green-200';
@@ -151,20 +183,18 @@ export function PermissionsGraphPage() {
 
   const getTargetIcon = (type: string) => {
     switch (type) {
-      case 'Tools': return Wrench;
-      case 'Agent': return Users;
-      case 'MCP Server': return Server;
-      case 'System': return Database;
+      case 'Identity': return User;
+      case 'Instance': return Users;
+      case 'Agent': return Bot;
       default: return Shield;
     }
   };
 
   const getTargetColor = (type: string) => {
     switch (type) {
-      case 'Tools': return 'bg-orange-50 text-orange-700 border-orange-200';
+      case 'Identity': return 'bg-purple-50 text-purple-700 border-purple-200';
+      case 'Instance': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
       case 'Agent': return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'MCP Server': return 'bg-purple-50 text-purple-700 border-purple-200';
-      case 'System': return 'bg-green-50 text-green-700 border-green-200';
       default: return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
@@ -225,7 +255,7 @@ export function PermissionsGraphPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-normal text-gray-900 mb-2">Agent Permissions & Dependencies</h1>
           <p className="text-sm text-gray-600">
-            Comprehensive view of agent access policies, MCP server dependencies, and system integrations
+            Comprehensive view of agent access policies and identity instances across multiple tenants
           </p>
         </div>
 
@@ -266,15 +296,17 @@ export function PermissionsGraphPage() {
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-gray-500 mb-1">Dependencies</div>
+              <div className="text-sm text-gray-500 mb-1">Identities & Instances</div>
               <div className="flex items-center gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-semibold text-purple-600">{selectedAgent.mcpDependencies.length}</div>
-                  <div className="text-xs text-gray-500">MCP Servers</div>
+                  <div className="text-2xl font-semibold text-purple-600">{selectedAgent.identities.length}</div>
+                  <div className="text-xs text-gray-500">Identities</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-semibold text-green-600">{selectedAgent.systemDependencies.length}</div>
-                  <div className="text-xs text-gray-500">Systems</div>
+                  <div className="text-2xl font-semibold text-indigo-600">
+                    {selectedAgent.identities.reduce((acc, id) => acc + id.instances.length, 0)}
+                  </div>
+                  <div className="text-xs text-gray-500">Instances</div>
                 </div>
               </div>
             </div>
@@ -283,14 +315,14 @@ export function PermissionsGraphPage() {
 
         {/* Dependency Flow Visualization */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Dependency Flow</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Identity Flow</h3>
           <div className="flex items-center justify-center gap-4 py-6">
             <div className="flex flex-col items-center">
               <div className="w-20 h-20 bg-blue-100 rounded-xl flex items-center justify-center border-2 border-blue-300">
                 <Bot className="w-10 h-10 text-blue-600" />
               </div>
               <span className="mt-2 text-sm font-medium text-gray-900">Agent</span>
-              <span className="text-xs text-gray-500">Identity</span>
+              <span className="text-xs text-gray-500">Type</span>
             </div>
             
             <div className="flex flex-col items-center px-4">
@@ -300,38 +332,27 @@ export function PermissionsGraphPage() {
             
             <div className="flex flex-col items-center">
               <div className="w-20 h-20 bg-purple-100 rounded-xl flex items-center justify-center border-2 border-purple-300">
-                <Server className="w-10 h-10 text-purple-600" />
+                <User className="w-10 h-10 text-purple-600" />
               </div>
-              <span className="mt-2 text-sm font-medium text-gray-900">MCP Server</span>
-              <span className="text-xs text-gray-500">Integration</span>
+              <span className="mt-2 text-sm font-medium text-gray-900">Identity</span>
+              <span className="text-xs text-gray-500">Instances</span>
             </div>
             
             <div className="flex flex-col items-center px-4">
               <ArrowRight className="w-8 h-8 text-purple-400" />
               <span className="text-xs text-gray-500 mt-1">
-                {selectedAgent.mcpDependencies.reduce((acc, mcp) => acc + mcp.rules.length, 0)} rules
+                {selectedAgent.identities.reduce((acc, id) => acc + id.rules.length, 0)} instances
               </span>
             </div>
             
             <div className="flex flex-col items-center">
-              <div className="w-20 h-20 bg-orange-100 rounded-xl flex items-center justify-center border-2 border-orange-300">
-                <Wrench className="w-10 h-10 text-orange-600" />
+              <div className="w-20 h-20 bg-indigo-100 rounded-xl flex items-center justify-center border-2 border-indigo-300">
+                <Users className="w-10 h-10 text-indigo-600" />
               </div>
-              <span className="mt-2 text-sm font-medium text-gray-900">Tools</span>
-              <span className="text-xs text-gray-500">Actions</span>
-            </div>
-            
-            <div className="flex flex-col items-center px-4">
-              <ArrowRight className="w-8 h-8 text-orange-400" />
-              <span className="text-xs text-gray-500 mt-1">{toolRules.length} rules</span>
-            </div>
-            
-            <div className="flex flex-col items-center">
-              <div className="w-20 h-20 bg-green-100 rounded-xl flex items-center justify-center border-2 border-green-300">
-                <Database className="w-10 h-10 text-green-600" />
-              </div>
-              <span className="mt-2 text-sm font-medium text-gray-900">System</span>
-              <span className="text-xs text-gray-500">Backend</span>
+              <span className="mt-2 text-sm font-medium text-gray-900">Instances</span>
+              <span className="text-xs text-gray-500">
+                {selectedAgent.identities.reduce((acc, id) => acc + id.instances.length, 0)} instances
+              </span>
             </div>
           </div>
         </div>
@@ -352,7 +373,7 @@ export function PermissionsGraphPage() {
                 <Users className="w-5 h-5 text-blue-600" />
               </div>
               <div className="text-left">
-                <h3 className="text-base font-medium text-gray-900">Agent Identity Rules</h3>
+                <h3 className="text-base font-medium text-gray-900">Procurement Agent Rules</h3>
                 <p className="text-sm text-gray-500">Rules governing access to this agent identity</p>
               </div>
             </div>
@@ -370,168 +391,119 @@ export function PermissionsGraphPage() {
           )}
         </div>
 
-        {/* MCP Server Dependencies & Rules */}
+        {/* Identities with Instances */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
           <button
-            onClick={() => toggleSection('mcp-rules')}
+            onClick={() => toggleSection('identity-rules')}
             className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50"
           >
             <div className="flex items-center gap-3">
-              {expandedSections.has('mcp-rules') ? (
+              {expandedSections.has('identity-rules') ? (
                 <ChevronDown className="w-5 h-5 text-gray-400" />
               ) : (
                 <ChevronRight className="w-5 h-5 text-gray-400" />
               )}
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Server className="w-5 h-5 text-purple-600" />
+                <User className="w-5 h-5 text-purple-600" />
               </div>
               <div className="text-left">
-                <h3 className="text-base font-medium text-gray-900">MCP Server Dependencies</h3>
-                <p className="text-sm text-gray-500">Rules for accessing MCP servers and their tools</p>
+                <h3 className="text-base font-medium text-gray-900">Identities & Instances</h3>
+                <p className="text-sm text-gray-500">Identity instances across different tenants and IDPs with their runtime instances</p>
               </div>
             </div>
             <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-              {selectedAgent.mcpDependencies.length} servers
+              {selectedAgent.identities.length} identities
             </span>
           </button>
           
-          {expandedSections.has('mcp-rules') && (
+          {expandedSections.has('identity-rules') && (
             <div className="px-6 pb-6 border-t border-gray-100">
-              {selectedAgent.mcpDependencies.map((mcp, idx) => (
-                <div key={mcp.id} className={`pt-4 ${idx > 0 ? 'border-t border-gray-100 mt-4' : ''}`}>
+              {selectedAgent.identities.map((identity, idx) => (
+                <div key={identity.id} className={`pt-4 ${idx > 0 ? 'border-t border-gray-100 mt-4' : ''}`}>
                   <div className="flex items-center gap-3 mb-4">
-                    <Server className="w-5 h-5 text-purple-600" />
-                    <span className="font-medium text-gray-900">{mcp.name}</span>
-                    <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs">
-                      {mcp.provider}
+                    <User className="w-5 h-5 text-purple-600" />
+                    <span className="font-medium text-gray-900">{identity.identity_name}</span>
+                    <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs font-mono">
+                      {identity.identity_id}
                     </span>
                     <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                      Region: {mcp.region}
+                      Tenant: {identity.tenant}
                     </span>
-                    <span className="text-xs text-gray-500">
-                      {mcp.tools.length} tools available
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded">
+                      <Network className="w-3 h-3 text-blue-700" />
+                      <span className="text-xs text-blue-700">
+                        {identity.idp_type} ({identity.idp_domain})
+                      </span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-xs ${
+                      identity.status === 'Active' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {identity.status}
                     </span>
                   </div>
                   
-                  <div className="ml-8 space-y-3">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                      Access Rules
+                  <div className="ml-8 space-y-4">
+                    {/* Identity Rules */}
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                        Identity Access Rules
+                      </div>
+                      <div className="space-y-3">
+                        {identity.rules.map(rule => renderRule(rule))}
+                      </div>
                     </div>
-                    {mcp.rules.map(rule => renderRule(rule))}
-                    
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mt-4 mb-2">
-                      Available Tools
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {mcp.tools.map(tool => (
-                        <div
-                          key={tool.id}
-                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
-                            tool.dataSensitivity === 'sensitive' 
-                              ? 'bg-amber-50 border-amber-200' 
-                              : tool.dataType === 'pii'
-                              ? 'bg-red-50 border-red-200'
-                              : 'bg-gray-50 border-gray-200'
-                          }`}
-                        >
-                          <Wrench className="w-3.5 h-3.5 text-gray-500" />
-                          <span className="text-sm text-gray-700">{tool.name}</span>
-                          {tool.dataSensitivity && (
-                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">
-                              {tool.dataSensitivity}
-                            </span>
-                          )}
-                          {tool.dataType && (
-                            <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs">
-                              {tool.dataType}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* Tool-Level Rules */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
-          <button
-            onClick={() => toggleSection('tool-rules')}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50"
-          >
-            <div className="flex items-center gap-3">
-              {expandedSections.has('tool-rules') ? (
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              ) : (
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-              )}
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Wrench className="w-5 h-5 text-orange-600" />
-              </div>
-              <div className="text-left">
-                <h3 className="text-base font-medium text-gray-900">Tool Access Rules</h3>
-                <p className="text-sm text-gray-500">Fine-grained rules for tool invocations</p>
-              </div>
-            </div>
-            <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
-              {toolRules.length} rules
-            </span>
-          </button>
-          
-          {expandedSections.has('tool-rules') && (
-            <div className="px-6 pb-6 border-t border-gray-100">
-              <div className="pt-4 space-y-3">
-                {toolRules.map(rule => renderRule(rule))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* System Dependencies & Rules */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <button
-            onClick={() => toggleSection('system-rules')}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50"
-          >
-            <div className="flex items-center gap-3">
-              {expandedSections.has('system-rules') ? (
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              ) : (
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-              )}
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <Database className="w-5 h-5 text-green-600" />
-              </div>
-              <div className="text-left">
-                <h3 className="text-base font-medium text-gray-900">System Backend Dependencies</h3>
-                <p className="text-sm text-gray-500">Rules for accessing backend systems</p>
-              </div>
-            </div>
-            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-              {selectedAgent.systemDependencies.length} systems
-            </span>
-          </button>
-          
-          {expandedSections.has('system-rules') && (
-            <div className="px-6 pb-6 border-t border-gray-100">
-              {selectedAgent.systemDependencies.map((system, idx) => (
-                <div key={system.id} className={`pt-4 ${idx > 0 ? 'border-t border-gray-100 mt-4' : ''}`}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <Database className="w-5 h-5 text-green-600" />
-                    <span className="font-medium text-gray-900">{system.name}</span>
-                    <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs">
-                      {system.type}
-                    </span>
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
-                      {system.provider}
-                    </span>
-                  </div>
-                  
-                  <div className="ml-8 space-y-3">
-                    {system.rules.map(rule => renderRule(rule))}
+                    {/* Instances */}
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                        Runtime Instances ({identity.instances.length})
+                      </div>
+                      <div className="space-y-3">
+                        {identity.instances.map((instance) => (
+                          <div key={instance.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            <div className="grid grid-cols-2 gap-4 mb-3">
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Server className="w-4 h-4 text-gray-500" />
+                                  <span className="text-xs font-medium text-gray-500">Pod ID</span>
+                                </div>
+                                <span className="text-sm font-mono text-gray-900">{instance.pod_id}</span>
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <FileText className="w-4 h-4 text-gray-500" />
+                                  <span className="text-xs font-medium text-gray-500">Operating System</span>
+                                </div>
+                                <span className="text-sm text-gray-900">{instance.os}</span>
+                              </div>
+                              <div className="col-span-2">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Key className="w-4 h-4 text-gray-500" />
+                                  <span className="text-xs font-medium text-gray-500">Public Key</span>
+                                </div>
+                                <span className="text-xs font-mono text-gray-700 break-all">{instance.public_key}</span>
+                              </div>
+                            </div>
+                            <div className="border-t border-gray-200 pt-3 mt-3">
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                  <span className="text-xs text-gray-600">Blocked:</span>
+                                  <span className="text-sm font-semibold text-red-700">{instance.audit_logs.blocked}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  <span className="text-xs text-gray-600">Approved:</span>
+                                  <span className="text-sm font-semibold text-green-700">{instance.audit_logs.approved}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -548,9 +520,8 @@ export function PermissionsGraphPage() {
               </div>
               <div>
                 <div className="text-2xl font-semibold text-gray-900">
-                  {selectedAgent.identityRules.filter(r => r.action === 'Allow').length +
-                   selectedAgent.mcpDependencies.reduce((acc, mcp) => acc + mcp.rules.filter(r => r.action === 'Allow').length, 0) +
-                   selectedAgent.systemDependencies.reduce((acc, sys) => acc + sys.rules.filter(r => r.action === 'Allow').length, 0)}
+                  {selectedAgent.identityRules.filter((r: PolicyRule) => r.action === 'Allow').length +
+                   selectedAgent.identities.reduce((acc: number, id: Identity) => acc + id.rules.filter((r: PolicyRule) => r.action === 'Allow').length, 0)}
                 </div>
                 <div className="text-xs text-gray-500">Allow Rules</div>
               </div>
@@ -564,8 +535,7 @@ export function PermissionsGraphPage() {
               </div>
               <div>
                 <div className="text-2xl font-semibold text-gray-900">
-                  {toolRules.filter(r => r.action === 'Ask For Consent').length +
-                   selectedAgent.mcpDependencies.reduce((acc, mcp) => acc + mcp.rules.filter(r => r.action === 'Ask For Consent').length, 0)}
+                  {selectedAgent.identities.reduce((acc: number, id: Identity) => acc + id.rules.filter((r: PolicyRule) => r.action === 'Ask For Consent').length, 0)}
                 </div>
                 <div className="text-xs text-gray-500">Consent Required</div>
               </div>
@@ -574,28 +544,28 @@ export function PermissionsGraphPage() {
           
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                <Shield className="w-5 h-5 text-red-600" />
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <User className="w-5 h-5 text-purple-600" />
               </div>
               <div>
                 <div className="text-2xl font-semibold text-gray-900">
-                  {toolRules.filter(r => r.action === 'Deny').length}
+                  {selectedAgent.identities.length}
                 </div>
-                <div className="text-xs text-gray-500">Deny Rules</div>
+                <div className="text-xs text-gray-500">Identities</div>
               </div>
             </div>
           </div>
           
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Wrench className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-indigo-600" />
               </div>
               <div>
                 <div className="text-2xl font-semibold text-gray-900">
-                  {selectedAgent.mcpDependencies.reduce((acc, mcp) => acc + mcp.tools.length, 0)}
+                  {selectedAgent.identities.reduce((acc: number, id: Identity) => acc + id.instances.length, 0)}
                 </div>
-                <div className="text-xs text-gray-500">Total Tools</div>
+                <div className="text-xs text-gray-500">Runtime Instances</div>
               </div>
             </div>
           </div>

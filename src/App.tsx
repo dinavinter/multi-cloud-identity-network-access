@@ -4,8 +4,9 @@ import { AgentListPage } from './pages/AgentListPage';
 import { AgentDetailPage } from './pages/AgentDetailPage';
 import { MetaPoliciesPage } from './pages/MetaPoliciesPage';
 import { PermissionsGraphPage } from './pages/PermissionsGraphPage';
+import { AgentAccessNetworkPage } from './pages/AgentAccessNetworkPage';
 
-type Page = 'home' | 'agents' | 'agent-detail' | 'meta-policies' | 'permissions-graph';
+type Page = 'home' | 'agents' | 'agent-detail' | 'meta-policies' | 'permissions-graph' | 'agent-access-network';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('agents');
@@ -40,6 +41,8 @@ function App() {
       {currentPage === 'meta-policies' && <MetaPoliciesPage />}
 
       {currentPage === 'permissions-graph' && <PermissionsGraphPage />}
+
+      {currentPage === 'agent-access-network' && <AgentAccessNetworkPage />}
     </div>
   );
 }
