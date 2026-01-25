@@ -4,8 +4,9 @@ on:
   push:
     branches:
       - '**'
+      - '!gh-pages'
   workflow_dispatch:
-
+  
 permissions:
   contents: write
 
@@ -47,7 +48,7 @@ jobs:
       - name: Deploy to GitHub Pages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CNAME_DOMAIN: ${{ vars.CNAME_DOMAIN || 'agents.ias.authz.id' }}
+          CNAME_DOMAIN: ${{ vars.CNAME_DOMAIN || 'control.ai.authz.id' }}
         run: |
           # Dynamically determine the git host domain from github.server_url
           SERVER_URL="${{ github.server_url }}"
