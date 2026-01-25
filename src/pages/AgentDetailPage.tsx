@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight, Edit, Trash2, Bot, Tag } from 'lucide-react';
+import { ChevronRight, Edit, Trash2, Bot, Tag, Network, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
 import { ProviderBadge } from '../components/ProviderBadge';
 import { StatusBadge } from '../components/StatusBadge';
+import NetworkGraph from './network/graph';
+import IdentityFlow from './network/header';
+import { PermissionsGraphPage } from './PermissionsGraphPage';
+import { agentData } from './network/agentData';
 
 type Agent = Database['public']['Tables']['agents']['Row'];
 type PolicyRule = Database['public']['Tables']['policy_rules']['Row'];
@@ -22,7 +26,7 @@ export function AgentDetailPage({ agentId, onBack }: AgentDetailPageProps) {
   const [policyRules, setPolicyRules] = useState<PolicyRule[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [identities, setIdentities] = useState<AgentIdentity[]>([]);
-  const [activeTab, setActiveTab] = useState<'personal' | 'auth' | 'timestamps' | 'attributes' | 'groups' | 'policies' | 'dependencies'>('policies');
+  const [activeTab, setActiveTab] = useState<'attributes' | 'network' | 'permissions-graph'>('network');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -101,11 +105,10 @@ export function AgentDetailPage({ agentId, onBack }: AgentDetailPageProps) {
                     {agent.labels.map((label, idx) => (
                       <span
                         key={idx}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium ${
-                          label.includes(':')
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium ${label.includes(':')
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'bg-gray-100 text-gray-700'
+                          }`}
                       >
                         <Tag className="w-3 h-3" />
                         {label}
@@ -133,186 +136,71 @@ export function AgentDetailPage({ agentId, onBack }: AgentDetailPageProps) {
           </div>
 
           <div className="border-t border-gray-200">
-            <div className="flex gap-8 px-6">
-              {(['personal', 'auth', 'timestamps', 'attributes', 'groups', 'policies', 'dependencies'] as const).map((tab) => (
+            <div className="flex gap-8 px-6 overflow-x-auto">
+              {(['network', 'permissions-graph', 'attributes'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`py-4 text-sm font-medium ${
-                    activeTab === tab
-                      ? 'text-gray-900 border-b-2 border-gray-900'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  aria-label={
+                    tab === 'attributes' ? 'Custom Attributes' :
+                      tab === 'network' ? 'Network' :
+                        'Policies'
+                  }
+                  className={`py-4 text-sm font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === tab
+                    ? 'text-gray-900 border-b-2 border-gray-900'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
-                  {tab === 'personal' && 'Personal Information'}
-                  {tab === 'auth' && 'Authentication'}
-                  {tab === 'timestamps' && 'Timestamps'}
-                  {tab === 'attributes' && 'Custom Attributes'}
-                  {tab === 'groups' && 'Groups'}
-                  {tab === 'policies' && 'Policies'}
-                  {tab === 'dependencies' && 'Dependencies'}
+                  {tab === 'attributes' && 'Attributes'}
+                  {tab === 'network' && (
+                    <>
+                      <Network className="w-4 h-4" />
+                      Network
+                    </>
+                  )}
+                  {tab === 'permissions-graph' && (
+                    <>
+                      <Shield className="w-4 h-4" />
+                      Policies
+                    </>
+                  )}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {activeTab === 'policies' && (
+        {activeTab === 'attributes' && (
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-start justify-between">
                 <div>
                   <h2 className="text-lg font-medium text-gray-900 mb-1">
-                    AI Agent Policies Management
+                    Attributes
                   </h2>
-                  <p className="text-sm text-gray-600">Configure access policies for AI agents</p>
+                  <p className="text-sm text-gray-600">Manage attributes for this agent</p>
                 </div>
-                {currentIdentity && (
-                  <div className="bg-blue-50 px-4 py-2 rounded">
-                    <span className="text-sm text-gray-600">Current Agent: </span>
-                    <span className="text-sm font-medium text-[#0854A0]">
-                      {currentIdentity.identity_id}
-                    </span>
-                    <span className="text-sm text-gray-600"> ({agent.name})</span>
-                  </div>
-                )}
               </div>
             </div>
 
             <div className="p-6">
-              <h3 className="text-sm font-medium text-gray-900 mb-4">
-                Policy Rules ({policyRules.length}):
-              </h3>
-              <div className="space-y-3">
-                {policyRules.map((rule) => (
-                  <div
-                    key={rule.id}
-                    className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-sm text-gray-600">Where</span>
-                      <span className="px-3 py-1 bg-gray-200 text-gray-800 rounded text-sm font-mono">
-                        {rule.rule_attribute}
-                      </span>
-                      <span className="text-sm text-gray-600">{rule.rule_operator}</span>
-                      <span className="px-3 py-1 bg-white border border-gray-300 rounded text-sm font-mono">
-                        {rule.rule_value}
-                      </span>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getActionColor(rule.action)}`}>
-                        {rule.action}
-                      </span>
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-                        {rule.action_type}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-sm text-gray-600">
+                Custom attributes configuration will be available here.
               </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'dependencies' && permissions.length > 0 && (
+        {activeTab === 'network' && (
+          <div className="space-y-6">
+            <IdentityFlow data={agentData} />
+            <NetworkGraph data={agentData} />
+          </div>
+        )}
+
+        {activeTab === 'permissions-graph' && (
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
-                <p className="text-sm text-gray-700">
-                  This application was created from a source application. Some of the inherited configurations can't be changed.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-x-12 gap-y-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Application type:</span>
-                  <span className="ml-2 font-medium">Bundled</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Application ID:</span>
-                  <span className="ml-2 font-mono text-xs">{agent.id}</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Name Type:</span>
-                  <span className="ml-2 font-medium">SAP BTP solution</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">URL:</span>
-                  <span className="ml-2 text-[#0854A0]">Home URL not configured</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Organization ID:</span>
-                  <span className="ml-2 font-medium">global</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Protocol Type:</span>
-                  <span className="ml-2 font-medium">OpenID Connect</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-medium text-gray-900">
-                  APIs ({permissions.length})
-                </h3>
-                <button className="text-sm text-[#0854A0] hover:underline">Add</button>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
-                <p className="text-sm text-gray-700">
-                  List of APIs provided by other Identity Authentication applications that are consumed by this application.
-                  A maximum of 20 entries is allowed.
-                </p>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                        Dependency Name
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                        Application
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                        API Name
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                        API Description
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                        Authorization Context
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {permissions.map((perm) => (
-                      <tr key={perm.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 text-sm text-gray-900">{perm.permission_type}</td>
-                        <td className="px-4 py-4 text-sm text-gray-900">
-                          {perm.systems?.name || 'Unknown'}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-900">{perm.api_name}</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">{perm.api_description}</td>
-                        <td className="px-4 py-4 text-sm text-gray-700">{perm.authorization_context}</td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-2">
-                            <button className="p-1 hover:bg-gray-100 rounded">
-                              <Edit className="w-4 h-4 text-gray-600" />
-                            </button>
-                            <button className="p-1 hover:bg-red-50 rounded">
-                              <Trash2 className="w-4 h-4 text-red-600" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <PermissionsGraphPage />
           </div>
         )}
       </div>
