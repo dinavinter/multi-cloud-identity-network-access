@@ -263,177 +263,158 @@ export default function NetworkGraph({ data }: IdentityFlowProps) {
       </div>
 
       <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200 overflow-hidden" style={{ height: '700px' }}>
-        <svg width="100%" height="100%" className="absolute inset-0">
+        <svg width="100%" height="100%" className="absolute inset-0" viewBox="0 0 1200 700">
           <defs>
+            <linearGradient id="agentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="1" />
+              <stop offset="100%" stopColor="#1d4ed8" stopOpacity="1" />
+            </linearGradient>
+            <linearGradient id="serviceNowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#14b8a6" stopOpacity="1" />
+              <stop offset="100%" stopColor="#0d9488" stopOpacity="1" />
+            </linearGradient>
+            <linearGradient id="s4Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0ea5e9" stopOpacity="1" />
+              <stop offset="100%" stopColor="#0284c7" stopOpacity="1" />
+            </linearGradient>
+            <linearGradient id="aribaGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#f59e0b" stopOpacity="1" />
+              <stop offset="100%" stopColor="#d97706" stopOpacity="1" />
+            </linearGradient>
+            <linearGradient id="awsGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#f97316" stopOpacity="1" />
+              <stop offset="100%" stopColor="#ea580c" stopOpacity="1" />
+            </linearGradient>
+            <filter id="shadow">
+              <feDropShadow dx="0" dy="4" stdDeviation="6" floodOpacity="0.15" />
+            </filter>
             <filter id="glow">
-              <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
               <feMerge>
                 <feMergeNode in="coloredBlur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-              <polygon points="0 0, 10 3, 0 6" fill="#9ca3af" />
-            </marker>
-            <marker id="arrowhead-highlight" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-              <polygon points="0 0, 10 3, 0 6" fill="#f97316" />
-            </marker>
           </defs>
 
-          {nodes.map(node =>
-            node.connections.map(connId => {
-              const targetNode = nodes.find(n => n.id === connId);
-              if (!targetNode) return null;
+          <g className="connections">
+            <path d="M 600 350 L 280 200" stroke="#cbd5e1" strokeWidth="3" strokeDasharray="8,4" opacity="0.5" />
+            <path d="M 600 350 L 920 200" stroke="#cbd5e1" strokeWidth="3" strokeDasharray="8,4" opacity="0.5" />
+            <path d="M 600 350 L 280 500" stroke="#cbd5e1" strokeWidth="3" strokeDasharray="8,4" opacity="0.5" />
+            <path d="M 600 350 L 920 500" stroke="#cbd5e1" strokeWidth="3" strokeDasharray="8,4" opacity="0.5" />
+          </g>
 
-              const isHighlighted = isConnected(node.id) && isConnected(connId);
-              const dx = targetNode.x - node.x;
-              const dy = targetNode.y - node.y;
-              const distance = Math.sqrt(dx * dx + dy * dy);
-              const offset = targetNode.size / 2 + 5;
-              const ratio = (distance - offset) / distance;
+          <g className="agent-identity" transform="translate(600, 350)">
+            <circle r="85" fill="url(#agentGradient)" filter="url(#shadow)" />
+            <circle r="85" fill="none" stroke="white" strokeWidth="4" opacity="0.3" />
+            <circle r="75" fill="none" stroke="white" strokeWidth="2" opacity="0.5" strokeDasharray="4,4">
+              <animateTransform
+                attributeName="transform"
+                attributeType="XML"
+                type="rotate"
+                from="0 0 0"
+                to="360 0 0"
+                dur="30s"
+                repeatCount="indefinite"
+              />
+            </circle>
 
-              return (
-                <g key={`${node.id}-${connId}`}>
-                  <line
-                    x1={node.x}
-                    y1={node.y}
-                    x2={node.x + dx * ratio}
-                    y2={node.y + dy * ratio}
-                    stroke={isHighlighted ? '#f97316' : '#d1d5db'}
-                    strokeWidth={isHighlighted ? 3 : 1.5}
-                    strokeOpacity={isHighlighted ? 0.8 : 0.4}
-                    markerEnd={isHighlighted ? 'url(#arrowhead-highlight)' : 'url(#arrowhead)'}
-                    className="transition-all duration-300"
-                  />
-                  {isHighlighted && (
-                    <line
-                      x1={node.x}
-                      y1={node.y}
-                      x2={node.x + dx * ratio}
-                      y2={node.y + dy * ratio}
-                      stroke="#f97316"
-                      strokeWidth="3"
-                      strokeOpacity="0.2"
-                      strokeDasharray="5,5"
-                      className="animate-pulse"
-                    />
-                  )}
-                </g>
-              );
-            })
-          )}
+            <g transform="translate(-20, -25)">
+              <circle cx="20" cy="15" r="12" fill="white" opacity="0.9" />
+              <circle cx="20" cy="15" r="8" fill="#1d4ed8" />
+              <rect x="8" y="30" width="24" height="28" rx="3" fill="white" opacity="0.9" />
+              <rect x="10" y="32" width="20" height="24" rx="2" fill="#1d4ed8" />
+              <rect x="14" y="40" width="4" height="8" fill="white" opacity="0.8" />
+              <rect x="22" y="40" width="4" height="8" fill="white" opacity="0.8" />
+            </g>
 
-          {nodes.map(node => {
-            const Icon = getIcon(node.icon);
-            const isActive = isConnected(node.id);
-            const isHovered = hoveredNode === node.id;
-            const isSelected = selectedNode === node.id;
-            const showTooltip = isHovered || isSelected;
-            const details = getNodeDetails(node);
+            <text y="55" textAnchor="middle" className="text-base font-bold" fill="white">Agentic</text>
+            <text y="72" textAnchor="middle" className="text-base font-bold" fill="white">Identity</text>
 
-            return (
-              <g
-                key={node.id}
-                transform={`translate(${node.x}, ${node.y})`}
-                onMouseEnter={() => setHoveredNode(node.id)}
-                onMouseLeave={() => setHoveredNode(null)}
-                onClick={() => setSelectedNode(selectedNode === node.id ? null : node.id)}
-                className="cursor-pointer transition-all duration-300"
-                style={{
-                  opacity: (hoveredNode || selectedNode) && !isActive ? 0.25 : 1,
-                  filter: (isHovered || isSelected) ? 'url(#glow)' : 'none'
-                }}
-              >
-                <circle
-                  r={node.size / 2 + 3}
-                  fill="white"
-                  opacity={showTooltip ? 0.3 : 0}
-                  className="transition-all duration-300"
-                />
-                <circle
-                  r={node.size / 2}
-                  fill={node.color}
-                  opacity={0.95}
-                  className="transition-all duration-300"
-                  style={{
-                    transform: showTooltip ? 'scale(1.15)' : 'scale(1)',
-                    transformOrigin: 'center'
-                  }}
-                />
-                <circle
-                  r={node.size / 2}
-                  fill="none"
-                  stroke="white"
-                  strokeWidth={showTooltip ? 3 : 0}
-                  opacity={0.5}
-                  className="transition-all duration-300"
-                />
-                <foreignObject
-                  x={-node.size / 4}
-                  y={-node.size / 4}
-                  width={node.size / 2}
-                  height={node.size / 2}
-                >
-                  <div className="flex items-center justify-center h-full">
-                    <Icon className="w-7 h-7 text-white" strokeWidth={2.5} />
-                  </div>
-                </foreignObject>
+            <circle cx="0" cy="-65" r="8" fill="#10b981">
+              <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
+            </circle>
+          </g>
 
-                {node.metadata?.status && (
-                  <circle
-                    cx={node.size / 3}
-                    cy={-node.size / 3}
-                    r="5"
-                    fill={node.metadata.status === 'Active' || node.metadata.status === 'Running' || node.metadata.status === 'Connected' || node.metadata.status === 'Live' ? '#10b981' : '#ef4444'}
-                    stroke="white"
-                    strokeWidth="2"
-                  />
-                )}
+          <g className="servicenow-system" transform="translate(280, 200)">
+            <rect x="-90" y="-70" width="180" height="140" rx="12" fill="url(#serviceNowGradient)" filter="url(#shadow)" />
+            <rect x="-90" y="-70" width="180" height="140" rx="12" fill="none" stroke="white" strokeWidth="3" opacity="0.2" />
 
-                {showTooltip && (
-                  <g>
-                    <rect
-                      x={-85}
-                      y={node.size / 2 + 12}
-                      width="170"
-                      height={24 + (details.length * 16)}
-                      rx="6"
-                      fill="white"
-                      stroke={node.color}
-                      strokeWidth="2"
-                      opacity="0.98"
-                      filter="drop-shadow(0 4px 6px rgba(0,0,0,0.1))"
-                    />
-                    <text
-                      y={node.size / 2 + 30}
-                      textAnchor="middle"
-                      className="text-sm font-bold fill-gray-900"
-                    >
-                      {node.label.length > 22 ? node.label.substring(0, 22) + '...' : node.label}
-                    </text>
-                    {details.map((detail, idx) => (
-                      <text
-                        key={idx}
-                        y={node.size / 2 + 46 + (idx * 16)}
-                        textAnchor="middle"
-                        className="text-xs fill-gray-600"
-                      >
-                        {detail}
-                      </text>
-                    ))}
-                    <rect
-                      x={-85}
-                      y={node.size / 2 + 12}
-                      width="170"
-                      height="3"
-                      rx="6"
-                      fill={node.color}
-                    />
-                  </g>
-                )}
-              </g>
-            );
-          })}
+            <g transform="translate(-25, -35)">
+              <rect x="15" y="15" width="20" height="20" rx="2" fill="white" opacity="0.9" />
+              <path d="M 20 25 L 25 30 L 30 20" stroke="#0d9488" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+
+            <text y="-5" textAnchor="middle" className="text-sm font-bold" fill="white">ServiceNow</text>
+
+            <rect x="-75" y="15" width="150" height="40" rx="6" fill="white" fillOpacity="0.15" />
+            <text y="32" textAnchor="middle" className="text-xs font-semibold" fill="white">incident:create</text>
+            <text y="46" textAnchor="middle" className="text-xs font-semibold" fill="white">ticket:read</text>
+          </g>
+
+          <g className="s4-system" transform="translate(920, 200)">
+            <rect x="-90" y="-70" width="180" height="140" rx="12" fill="url(#s4Gradient)" filter="url(#shadow)" />
+            <rect x="-90" y="-70" width="180" height="140" rx="12" fill="none" stroke="white" strokeWidth="3" opacity="0.2" />
+
+            <g transform="translate(-20, -35)">
+              <rect x="10" y="15" width="20" height="25" rx="2" fill="white" opacity="0.9" />
+              <line x1="15" y1="22" x2="25" y2="22" stroke="#0284c7" strokeWidth="2" />
+              <line x1="15" y1="28" x2="25" y2="28" stroke="#0284c7" strokeWidth="2" />
+              <line x1="15" y1="34" x2="25" y2="34" stroke="#0284c7" strokeWidth="2" />
+            </g>
+
+            <text y="-5" textAnchor="middle" className="text-sm font-bold" fill="white">SAP S/4HANA</text>
+
+            <rect x="-75" y="15" width="150" height="40" rx="6" fill="white" fillOpacity="0.15" />
+            <text y="32" textAnchor="middle" className="text-xs font-semibold" fill="white">order:read</text>
+            <text y="46" textAnchor="middle" className="text-xs font-semibold" fill="white">material:query</text>
+          </g>
+
+          <g className="ariba-system" transform="translate(280, 500)">
+            <rect x="-90" y="-70" width="180" height="140" rx="12" fill="url(#aribaGradient)" filter="url(#shadow)" />
+            <rect x="-90" y="-70" width="180" height="140" rx="12" fill="none" stroke="white" strokeWidth="3" opacity="0.2" />
+
+            <g transform="translate(-20, -35)">
+              <circle cx="20" cy="25" r="10" fill="white" opacity="0.9" />
+              <path d="M 20 20 L 20 30 M 15 25 L 25 25" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" />
+            </g>
+
+            <text y="-5" textAnchor="middle" className="text-sm font-bold" fill="white">SAP Ariba</text>
+
+            <rect x="-75" y="15" width="150" height="40" rx="6" fill="white" fillOpacity="0.15" />
+            <text y="32" textAnchor="middle" className="text-xs font-semibold" fill="white">PO:create</text>
+            <text y="46" textAnchor="middle" className="text-xs font-semibold" fill="white">supplier:manage</text>
+          </g>
+
+          <g className="aws-system" transform="translate(920, 500)">
+            <rect x="-90" y="-70" width="180" height="140" rx="12" fill="url(#awsGradient)" filter="url(#shadow)" />
+            <rect x="-90" y="-70" width="180" height="140" rx="12" fill="none" stroke="white" strokeWidth="3" opacity="0.2" />
+
+            <g transform="translate(-20, -35)">
+              <path d="M 10 25 L 20 15 L 30 25 L 20 35 Z" fill="white" opacity="0.9" />
+              <path d="M 20 22 L 20 28" stroke="#ea580c" strokeWidth="2" />
+              <circle cx="20" cy="20" r="2" fill="#ea580c" />
+            </g>
+
+            <text y="-5" textAnchor="middle" className="text-sm font-bold" fill="white">AWS</text>
+
+            <rect x="-75" y="15" width="150" height="40" rx="6" fill="white" fillOpacity="0.15" />
+            <text y="32" textAnchor="middle" className="text-xs font-semibold" fill="white">s3:upload</text>
+            <text y="46" textAnchor="middle" className="text-xs font-semibold" fill="white">lambda:invoke</text>
+          </g>
+
+          <g className="legend" transform="translate(60, 620)">
+            <rect x="0" y="0" width="280" height="60" rx="8" fill="white" fillOpacity="0.95" filter="url(#shadow)" />
+            <text x="15" y="20" className="text-xs font-bold" fill="#374151">Permission Types</text>
+            <g transform="translate(15, 30)">
+              <circle cx="5" cy="5" r="4" fill="#10b981" />
+              <text x="15" y="9" className="text-xs" fill="#6b7280">Read Access</text>
+              <circle cx="85" cy="5" r="4" fill="#3b82f6" />
+              <text x="95" y="9" className="text-xs" fill="#6b7280">Write Access</text>
+              <circle cx="175" cy="5" r="4" fill="#f59e0b" />
+              <text x="185" y="9" className="text-xs" fill="#6b7280">Admin Access</text>
+            </g>
+          </g>
         </svg>
 
         <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg border-2 border-gray-200 p-4">
